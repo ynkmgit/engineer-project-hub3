@@ -9,13 +9,20 @@ import './styles/global.css'
 function App() {
   const [markdown, setMarkdown] = useState('# Hello World\n\nStart editing to see some magic happen!')
   const [html, setHtml] = useState('<h1>Hello World</h1>\n<p>Start editing to see some magic happen!</p>')
+  const [css, setCss] = useState('/* Add your styles here */\n\nbody {\n  font-family: Arial, sans-serif;\n}')
   const [activeTab, setActiveTab] = useState('markdown')
 
   const handleContentChange = (value) => {
-    if (activeTab === 'markdown') {
-      setMarkdown(value)
-    } else {
-      setHtml(value)
+    switch (activeTab) {
+      case 'markdown':
+        setMarkdown(value)
+        break
+      case 'html':
+        setHtml(value)
+        break
+      case 'css':
+        setCss(value)
+        break
     }
   }
 
@@ -46,6 +53,19 @@ function App() {
     }
   }
 
+  const getCurrentContent = () => {
+    switch (activeTab) {
+      case 'markdown':
+        return markdown
+      case 'html':
+        return html
+      case 'css':
+        return css
+      default:
+        return ''
+    }
+  }
+
   return (
     <div className="app-container">
       <div className="editor-section">
@@ -56,7 +76,7 @@ function App() {
           activeTab={activeTab}
         />
         <Editor 
-          value={activeTab === 'markdown' ? markdown : html}
+          value={getCurrentContent()}
           onChange={handleContentChange}
           mode={activeTab}
         />
@@ -64,6 +84,7 @@ function App() {
       <Preview 
         markdown={activeTab === 'markdown' ? markdown : html} 
         isHtml={activeTab === 'html'}
+        css={css}
       />
     </div>
   )

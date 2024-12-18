@@ -15,6 +15,12 @@ const TabSelector = ({ activeTab, onTabChange }) => {
       >
         HTML
       </button>
+      <button
+        className={`tab-button ${activeTab === 'css' ? 'active' : ''}`}
+        onClick={() => onTabChange('css')}
+      >
+        CSS
+      </button>
     </div>
   )
 }
