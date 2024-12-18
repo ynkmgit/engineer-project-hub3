@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './CSSPropertyMenu.css';
 
 const commonProperties = [
-  { name: 'color', type: 'color' },
-  { name: 'background-color', type: 'color' },
+  { name: 'color', type: 'color', defaultValue: '#000000' },
+  { name: 'background-color', type: 'color', defaultValue: '#FFFFFF' },
   { name: 'font-size', type: 'text' },
   { name: 'font-weight', type: 'select', options: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'] },
   { name: 'margin', type: 'text' },
@@ -12,6 +12,32 @@ const commonProperties = [
   { name: 'border-radius', type: 'text' },
   { name: 'text-align', type: 'select', options: ['left', 'center', 'right', 'justify'] },
 ];
+
+// カラー値をHEX形式に変換する関数
+const rgbaToHex = (rgba) => {
+  // 透明や未設定の値をチェック
+  if (rgba === 'rgba(0, 0, 0, 0)' || rgba === 'transparent' || !rgba) {
+    return '';
+  }
+
+  // rgba(r, g, b, a) または rgb(r, g, b) 形式の文字列を解析
+  const values = rgba.match(/\d+(\.\d+)?/g);
+  if (!values) return null;
+
+  const r = parseInt(values[0]);
+  const g = parseInt(values[1]);
+  const b = parseInt(values[2]);
+
+  // 16進数に変換して結合
+  const hex = '#' + [r, g, b]
+    .map(x => {
+      const hex = x.toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    })
+    .join('');
+
+  return hex;
+};
 
 const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
   const [styles, setStyles] = useState({});
@@ -22,7 +48,25 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
       setSelector(selectedElement.path);
       const initialStyles = {};
       commonProperties.forEach(prop => {
-        initialStyles[prop.name] = selectedElement.cssProperties[prop.name] || '';
+        let value = selectedElement.cssProperties[prop.name] || '';
+
+        // カラー値の場合の処理
+        if (prop.type === 'color' && value) {
+          try {
+            // 透明や未設定の値は変換しない
+            if (value === 'rgba(0, 0, 0, 0)' || value === 'transparent') {
+              value = '';
+            } else {
+              const hexValue = rgbaToHex(value);
+              // 変換に失敗した場合は元の値を保持
+              value = hexValue || value;
+            }
+          } catch (e) {
+            // エラーの場合は元の値を保持
+            console.warn('Color conversion error:', e);
+          }
+        }
+        initialStyles[prop.name] = value;
       });
       setStyles(initialStyles);
     }
@@ -47,6 +91,17 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
 
   if (!selectedElement) return null;
 
+  const getStyleValue = (propName, defaultValue = '') => {
+    const value = styles[propName];
+    if (value !== undefined && value !== '') return value;
+    // カラー入力の場合、空値は透明として扱う
+    const prop = commonProperties.find(p => p.name === propName);
+    if (prop?.type === 'color' && value === '') {
+      return defaultValue || '#FFFFFF';
+    }
+    return defaultValue;
+  };
+
   return (
     <div className="css-property-menu">
       <div className="menu-header">
@@ -63,7 +118,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
             <label>{prop.name}</label>
             {prop.type === 'select' ? (
               <select
-                value={styles[prop.name]}
+                value={getStyleValue(prop.name, '')}
                 onChange={(e) => handleStyleChange(prop.name, e.target.value)}
               >
                 <option value="">選択してください</option>
@@ -75,12 +130,12 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
               <div className="color-input-wrapper">
                 <input
                   type="color"
-                  value={styles[prop.name] || '#000000'}
+                  value={getStyleValue(prop.name, prop.defaultValue)}
                   onChange={(e) => handleStyleChange(prop.name, e.target.value)}
                 />
                 <input
                   type="text"
-                  value={styles[prop.name]}
+                  value={styles[prop.name] || ''}
                   onChange={(e) => handleStyleChange(prop.name, e.target.value)}
                   placeholder={prop.name}
                 />
@@ -88,7 +143,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
             ) : (
               <input
                 type="text"
-                value={styles[prop.name]}
+                value={getStyleValue(prop.name, '')}
                 onChange={(e) => handleStyleChange(prop.name, e.target.value)}
                 placeholder={prop.name}
               />
