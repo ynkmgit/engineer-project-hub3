@@ -136,41 +136,12 @@
 }
 
 .number-input-wrapper input[type="number"] {
-  flex: 1;
   width: auto;
 }
 
-.number-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.number-control-button {
-  padding: 0;
-  width: 18px;
-  height: 14px;
-  line-height: 1;
-  border: 1px solid #ddd;
-  background: #fff;
-  cursor: pointer;
-  font-size: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 2px;
-  color: #666;
-}
-
-.number-control-button:hover {
-  background: #f5f5f5;
-  color: #000;
-}
-
 .unit-label {
+  margin-left: 4px;
   color: #666;
-  font-size: 12px;
-  min-width: 20px;
 }
 
 .margin-inputs {

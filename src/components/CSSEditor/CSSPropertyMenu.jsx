@@ -242,23 +242,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
                   step={subProp.step}
                   onChange={(e) => handleNumberChange(subProp.name, e.target.value, subProp)}
                 />
-                <div className="number-controls">
-                  <button
-                    type="button"
-                    className="number-control-button"
-                    onClick={() => handleNumberAdjust(subProp.name, true, subProp)}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    className="number-control-button"
-                    onClick={() => handleNumberAdjust(subProp.name, false, subProp)}
-                  >
-                    ▼
-                  </button>
-                </div>
-                <span className="unit-label">{subProp.unit}</span>
+                {subProp.unit && <span className="unit-label">{subProp.unit}</span>}
               </div>
             </div>
           );
@@ -317,23 +301,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
                 step={prop.step}
                 onChange={(e) => handleNumberChange(prop.name, e.target.value, prop)}
               />
-              <div className="number-controls">
-                <button
-                  type="button"
-                  className="number-control-button"
-                  onClick={() => handleNumberAdjust(prop.name, true, prop)}
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  className="number-control-button"
-                  onClick={() => handleNumberAdjust(prop.name, false, prop)}
-                >
-                  ▼
-                </button>
-              </div>
-              <span className="unit-label">{prop.unit}</span>
+              {prop.unit && <span className="unit-label">{prop.unit}</span>}
             </div>
           </div>
         );
