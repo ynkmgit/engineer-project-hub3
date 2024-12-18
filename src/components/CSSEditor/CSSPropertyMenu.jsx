@@ -63,6 +63,53 @@ const parseValueAndUnit = (value) => {
 const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewStyles }) => {
   const [styles, setStyles] = useState({});
   const [selector, setSelector] = useState('');
+  const [position, setPosition] = useState({ x: 20, y: 20 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // ドラッグ開始時の処理
+  const handleMouseDown = (e) => {
+    if (e.target.closest('.close-button') || e.target.closest('.apply-button')) return;
+    setIsDragging(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  // ドラッグ中の処理
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+
+      const newX = e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
+
+      // 画面外に出ないように制限
+      const maxX = window.innerWidth - 320; // メニューの幅を考慮
+      const maxY = window.innerHeight - 100; // 適度な余白を確保
+
+      setPosition({
+        x: Math.max(0, Math.min(maxX, newX)),
+        y: Math.max(0, Math.min(maxY, newY))
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
 
   useEffect(() => {
     if (selectedElement) {
@@ -290,7 +337,18 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   };
 
   return (
-    <div className="css-property-menu">
+    <div
+      className={`css-property-menu ${isDragging ? 'dragging' : ''}`}
+      style={{
+        position: 'fixed',
+        right: 'auto',
+        top: 'auto',
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        cursor: isDragging ? 'grabbing' : 'grab'
+      }}
+      onMouseDown={handleMouseDown}
+    >
       <div className="menu-header">
         <h3>スタイル編集: {selectedElement.tagName}</h3>
         <button className="close-button" onClick={handleClose}>×</button>

@@ -6,6 +6,7 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
   const iframeRef = useRef(null)
   const content = isHtml ? markdown : marked(markdown)
   const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedPath, setSelectedPath] = useState(null)
 
   useEffect(() => {
     const iframe = iframeRef.current
@@ -28,6 +29,23 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
                 outline: 2px solid #007bff !important;
               }
             ` : ''}
+            ${selectedPath ? `
+              ${selectedPath} {
+                outline: 2px solid #007bff !important;
+                outline-offset: 2px !important;
+                position: relative !important;
+              }
+              ${selectedPath}::after {
+                content: '';
+                position: absolute;
+                top: -2px;
+                left: -2px;
+                right: -2px;
+                bottom: -2px;
+                pointer-events: none;
+                border: 1px solid rgba(0, 123, 255, 0.3);
+              }
+            ` : ''}
           </style>
           <script>
             document.addEventListener('click', (e) => {
@@ -43,11 +61,12 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
                   cssProperties[prop] = styles.getPropertyValue(prop);
                 }
 
+                const path = generateSelector(element);
                 window.parent.postMessage({
                   type: 'elementSelected',
                   tagName: element.tagName.toLowerCase(),
                   cssProperties,
-                  path: generateSelector(element)
+                  path
                 }, '*');
               }
             }, true);
@@ -84,6 +103,7 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
 
     const handleMessage = (event) => {
       if (event.data.type === 'elementSelected') {
+        setSelectedPath(event.data.path);
         onElementSelect?.(event.data);
         setIsSelectionMode(false);
       }
@@ -95,14 +115,19 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
       URL.revokeObjectURL(url);
       window.removeEventListener('message', handleMessage);
     }
-  }, [content, css, isSelectionMode, previewStyles])
+  }, [content, css, isSelectionMode, previewStyles, selectedPath])
 
   return (
     <div className="preview-section">
       <div className="preview-toolbar">
         <button
           className={`selection-mode-button ${isSelectionMode ? 'active' : ''}`}
-          onClick={() => setIsSelectionMode(!isSelectionMode)}
+          onClick={() => {
+            setIsSelectionMode(!isSelectionMode);
+            if (!isSelectionMode) {
+              setSelectedPath(null);
+            }
+          }}
         >
           要素を選択
         </button>
