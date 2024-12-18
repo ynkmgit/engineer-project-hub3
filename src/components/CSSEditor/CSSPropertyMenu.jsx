@@ -4,13 +4,26 @@ import './CSSPropertyMenu.css';
 const commonProperties = [
   { name: 'color', type: 'color', defaultValue: '#000000' },
   { name: 'background-color', type: 'color', defaultValue: '#FFFFFF' },
-  { name: 'font-size', type: 'text' },
+  { name: 'font-size', type: 'number', unit: 'px', min: 0, step: 1 },
   { name: 'font-weight', type: 'select', options: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'] },
-  { name: 'margin', type: 'text' },
-  { name: 'padding', type: 'text' },
-  { name: 'border', type: 'text' },
-  { name: 'border-radius', type: 'text' },
+  {
+    name: 'margin',
+    type: 'margin',
+    subProperties: [
+      { name: 'margin-top', unit: 'px', step: 1 },
+      { name: 'margin-right', unit: 'px', step: 1 },
+      { name: 'margin-bottom', unit: 'px', step: 1 },
+      { name: 'margin-left', unit: 'px', step: 1 }
+    ]
+  },
+  { name: 'padding', type: 'number', unit: 'px', min: 0, step: 1 },
+  { name: 'border-radius', type: 'number', unit: 'px', min: 0, step: 1 },
   { name: 'text-align', type: 'select', options: ['left', 'center', 'right', 'justify'] },
+  { name: 'position', type: 'select', options: ['static', 'relative', 'absolute', 'fixed'] },
+  { name: 'top', type: 'number', unit: 'px', step: 1 },
+  { name: 'left', type: 'number', unit: 'px', step: 1 },
+  { name: 'width', type: 'number', unit: 'px', min: 0, step: 1 },
+  { name: 'height', type: 'number', unit: 'px', min: 0, step: 1 },
 ];
 
 // カラー値をHEX形式に変換する関数
@@ -28,7 +41,7 @@ const rgbaToHex = (rgba) => {
   const g = parseInt(values[1]);
   const b = parseInt(values[2]);
 
-  // 16進数���変換して結合
+  // 16進数に変換して結合
   const hex = '#' + [r, g, b]
     .map(x => {
       const hex = x.toString(16);
@@ -37,6 +50,14 @@ const rgbaToHex = (rgba) => {
     .join('');
 
   return hex;
+};
+
+// 数値とユニッ���を分離する関数
+const parseValueAndUnit = (value) => {
+  if (!value) return { value: '', unit: '' };
+  const match = value.match(/^(-?\d*\.?\d*)(.*)$/);
+  if (!match) return { value: '', unit: '' };
+  return { value: match[1], unit: match[2] };
 };
 
 const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewStyles }) => {
@@ -48,30 +69,32 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
       setSelector(selectedElement.path);
       const initialStyles = {};
       commonProperties.forEach(prop => {
-        let value = selectedElement.cssProperties[prop.name] || '';
-
-        // カラー値の場合の処理
-        if (prop.type === 'color' && value) {
-          try {
-            // 透明や未設定の値は変換しない
-            if (value === 'rgba(0, 0, 0, 0)' || value === 'transparent') {
-              value = '';
-            } else {
-              const hexValue = rgbaToHex(value);
-              // 変換に失敗した場合は元の値を保持
-              value = hexValue || value;
+        if (prop.type === 'margin') {
+          // marginの各方向の値を個別に設定
+          prop.subProperties.forEach(subProp => {
+            let value = selectedElement.cssProperties[subProp.name] || '';
+            initialStyles[subProp.name] = value;
+          });
+        } else {
+          let value = selectedElement.cssProperties[prop.name] || '';
+          if (prop.type === 'color' && value) {
+            try {
+              if (value === 'rgba(0, 0, 0, 0)' || value === 'transparent') {
+                value = '';
+              } else {
+                const hexValue = rgbaToHex(value);
+                value = hexValue || value;
+              }
+            } catch (e) {
+              console.warn('Color conversion error:', e);
             }
-          } catch (e) {
-            // エラーの場合は元の値を保持
-            console.warn('Color conversion error:', e);
           }
+          initialStyles[prop.name] = value;
         }
-        initialStyles[prop.name] = value;
       });
       setStyles(initialStyles);
     }
 
-    // コンポーネントがアンマウントされる時にプレビューをクリア
     return () => {
       onPreviewStyles?.('');
     };
@@ -95,6 +118,21 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
       ...prev,
       [property]: value
     }));
+  };
+
+  const handleNumberChange = (property, rawValue, prop) => {
+    const unit = prop.unit || '';
+    const value = rawValue === '' ? '' : `${rawValue}${unit}`;
+    handleStyleChange(property, value);
+  };
+
+  const handleNumberAdjust = (property, increment, prop) => {
+    const { value: currentValue, unit } = parseValueAndUnit(styles[property]);
+    const numValue = currentValue === '' ? 0 : parseFloat(currentValue);
+    const step = prop.step || 1;
+    const min = prop.min !== undefined ? prop.min : -Infinity;
+    const newValue = Math.max(min, numValue + (increment ? step : -step));
+    handleStyleChange(property, `${newValue}${unit || prop.unit || ''}`);
   };
 
   const handleApply = () => {
@@ -126,6 +164,123 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
     return defaultValue;
   };
 
+  const renderMarginInputs = (prop) => {
+    return (
+      <div className="margin-inputs">
+        {prop.subProperties.map(subProp => {
+          const { value: numValue } = parseValueAndUnit(styles[subProp.name] || '');
+          const label = subProp.name.replace('margin-', '');
+          return (
+            <div key={subProp.name} className="margin-input-item">
+              <label>{label}</label>
+              <div className="number-input-wrapper">
+                <input
+                  type="number"
+                  value={numValue}
+                  step={subProp.step}
+                  onChange={(e) => handleNumberChange(subProp.name, e.target.value, subProp)}
+                />
+                <div className="number-controls">
+                  <button
+                    type="button"
+                    className="number-control-button"
+                    onClick={() => handleNumberAdjust(subProp.name, true, subProp)}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="number-control-button"
+                    onClick={() => handleNumberAdjust(subProp.name, false, subProp)}
+                  >
+                    ▼
+                  </button>
+                </div>
+                <span className="unit-label">{subProp.unit}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderInput = (prop) => {
+    const value = styles[prop.name] || '';
+
+    switch (prop.type) {
+      case 'margin':
+        return renderMarginInputs(prop);
+      case 'select':
+        return (
+          <select
+            value={getStyleValue(prop.name, '')}
+            onChange={(e) => handleStyleChange(prop.name, e.target.value)}
+          >
+            <option value="">選択してください</option>
+            {prop.options.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        );
+      case 'color':
+        return (
+          <div className="color-input-wrapper">
+            <input
+              type="color"
+              value={getStyleValue(prop.name, prop.defaultValue)}
+              onChange={(e) => handleStyleChange(prop.name, e.target.value)}
+            />
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => handleStyleChange(prop.name, e.target.value)}
+              placeholder={prop.name}
+            />
+          </div>
+        );
+      case 'number':
+        const { value: numValue } = parseValueAndUnit(value);
+        return (
+          <div className="number-input-wrapper">
+            <input
+              type="number"
+              value={numValue}
+              min={prop.min}
+              step={prop.step}
+              onChange={(e) => handleNumberChange(prop.name, e.target.value, prop)}
+            />
+            <div className="number-controls">
+              <button
+                type="button"
+                className="number-control-button"
+                onClick={() => handleNumberAdjust(prop.name, true, prop)}
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                className="number-control-button"
+                onClick={() => handleNumberAdjust(prop.name, false, prop)}
+              >
+                ▼
+              </button>
+            </div>
+            <span className="unit-label">{prop.unit}</span>
+          </div>
+        );
+      default:
+        return (
+          <input
+            type="text"
+            value={getStyleValue(prop.name, '')}
+            onChange={(e) => handleStyleChange(prop.name, e.target.value)}
+            placeholder={prop.name}
+          />
+        );
+    }
+  };
+
   return (
     <div className="css-property-menu">
       <div className="menu-header">
@@ -140,38 +295,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
         {commonProperties.map(prop => (
           <div key={prop.name} className="property-item">
             <label>{prop.name}</label>
-            {prop.type === 'select' ? (
-              <select
-                value={getStyleValue(prop.name, '')}
-                onChange={(e) => handleStyleChange(prop.name, e.target.value)}
-              >
-                <option value="">選択してください</option>
-                {prop.options.map(option => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            ) : prop.type === 'color' ? (
-              <div className="color-input-wrapper">
-                <input
-                  type="color"
-                  value={getStyleValue(prop.name, prop.defaultValue)}
-                  onChange={(e) => handleStyleChange(prop.name, e.target.value)}
-                />
-                <input
-                  type="text"
-                  value={styles[prop.name] || ''}
-                  onChange={(e) => handleStyleChange(prop.name, e.target.value)}
-                  placeholder={prop.name}
-                />
-              </div>
-            ) : (
-              <input
-                type="text"
-                value={getStyleValue(prop.name, '')}
-                onChange={(e) => handleStyleChange(prop.name, e.target.value)}
-                placeholder={prop.name}
-              />
-            )}
+            {renderInput(prop)}
           </div>
         ))}
       </div>
