@@ -1,0 +1,32 @@
+.preview-container {
+  padding: 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.preview-container h1 {
+  font-size: 2em;
+  margin-bottom: 0.5em;
+}
+
+.preview-container h2 {
+  font-size: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.preview-container p {
+  margin-bottom: 1em;
+}
+
+.preview-container ul,
+.preview-container ol {
+  margin-bottom: 1em;
+  padding-left: 2em;
+}
+
+.preview-container code {
+  background-color: #f5f5f5;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Courier New', Courier, monospace;
+}
