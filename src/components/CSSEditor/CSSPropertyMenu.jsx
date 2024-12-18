@@ -81,10 +81,14 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [elementInfo, setElementInfo] = useState({ tagName: '', id: '', className: '' });
 
   // ドラッグ開始時の処理
   const handleMouseDown = (e) => {
-    if (e.target.closest('.close-button') || e.target.closest('.apply-button')) return;
+    // メニューヘッダー以外でのドラッグを無効化
+    if (!e.target.closest('.menu-header') ||
+      e.target.closest('.close-button')) return;
+
     setIsDragging(true);
     const rect = e.currentTarget.getBoundingClientRect();
     setDragOffset({
@@ -128,46 +132,16 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
 
   useEffect(() => {
     if (selectedElement) {
-      console.log('Selected Element:', {
-        id: selectedElement.id,
-        className: selectedElement.className,
-        path: selectedElement.path
+      const { tagName, id, className, path } = selectedElement;
+      setElementInfo({
+        tagName: tagName.toLowerCase(),
+        id: id || '',
+        className: className || ''
       });
-
-      setSelector(selectedElement.path);
-      setElementId(selectedElement.id || '');
-      setElementClasses(selectedElement.className || '');
-      const initialStyles = {};
-      commonProperties.forEach(prop => {
-        if (prop.type === 'margin') {
-          // marginの各方向の値を個別に設定
-          prop.subProperties.forEach(subProp => {
-            let value = selectedElement.cssProperties[subProp.name] || '';
-            initialStyles[subProp.name] = value;
-          });
-        } else {
-          let value = selectedElement.cssProperties[prop.name] || '';
-          if (prop.type === 'color' && value) {
-            try {
-              if (value === 'rgba(0, 0, 0, 0)' || value === 'transparent') {
-                value = '';
-              } else {
-                const hexValue = rgbaToHex(value);
-                value = hexValue || value;
-              }
-            } catch (e) {
-              console.warn('Color conversion error:', e);
-            }
-          }
-          initialStyles[prop.name] = value;
-        }
-      });
-      setStyles(initialStyles);
+      setSelector(path);
+      setElementId(id || '');
+      setElementClasses(className || '');
     }
-
-    return () => {
-      onPreviewStyles?.('');
-    };
   }, [selectedElement]);
 
   // スタイルが変更されるたびにプレビューを更新
@@ -221,24 +195,22 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
     onClose();
   };
 
-  const handleElementUpdate = () => {
-    if (!selectedElement) return;
+  const handleUpdateElement = () => {
+    onUpdateElement({
+      originalPath: selectedElement.path,
+      id: elementId.trim() || null,
+      className: elementClasses.trim() || null
+    });
+    onClose(); // 更新後にポップアップを閉じる
+  };
 
-    const updates = {
-      id: elementId.trim(),
-      className: elementClasses.trim(),
-      originalPath: selectedElement.path
-    };
-
-    if (!updates.id) {
-      updates.id = null;
+  const handleColorChange = (property, color) => {
+    try {
+      const cssValue = color.hex;
+      updatePreviewStyles(property, cssValue);
+    } catch (e) {
+      // カラー変換エラーは無視
     }
-    if (!updates.className) {
-      updates.className = null;
-    }
-
-    onUpdateElement(updates);
-    onClose();
   };
 
   if (!selectedElement) return null;
@@ -385,14 +357,13 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
       style={{
         position: 'fixed',
         right: 'auto',
-        top: 'auto',
         left: `${position.x}px`,
         top: `${position.y}px`,
-        cursor: isDragging ? 'grabbing' : 'grab'
+        cursor: 'default'  // デフォルトのカーソルに変更
       }}
       onMouseDown={handleMouseDown}
     >
-      <div className="menu-header">
+      <div className="menu-header" style={{ cursor: 'grab' }}>
         <h3>スタイル編集: {selectedElement.tagName}</h3>
         <button className="close-button" onClick={handleClose}>×</button>
       </div>
@@ -419,7 +390,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
             placeholder="クラス名（スペース区切り）"
           />
         </div>
-        <button className="update-element-button" onClick={handleElementUpdate}>
+        <button className="update-element-button" onClick={handleUpdateElement}>
           ID/クラスを更新
         </button>
       </div>
