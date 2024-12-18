@@ -6,11 +6,24 @@ const Editor = ({ value, onChange, mode }) => {
   const editorRef = useRef(null)
   const containerRef = useRef(null)
 
+  const getLanguage = (mode) => {
+    switch (mode) {
+      case 'markdown':
+        return 'markdown'
+      case 'html':
+        return 'html'
+      case 'css':
+        return 'css'
+      default:
+        return 'plaintext'
+    }
+  }
+
   useEffect(() => {
     if (containerRef.current) {
       editorRef.current = monaco.editor.create(containerRef.current, {
         value: value,
-        language: mode === 'markdown' ? 'markdown' : 'html',
+        language: getLanguage(mode),
         theme: 'vs-dark',
         minimap: { enabled: false },
         wordWrap: 'on',
@@ -45,7 +58,7 @@ const Editor = ({ value, onChange, mode }) => {
       
       monaco.editor.setModelLanguage(
         editorRef.current.getModel(),
-        mode === 'markdown' ? 'markdown' : 'html'
+        getLanguage(mode)
       )
     }
   }, [value, mode])
