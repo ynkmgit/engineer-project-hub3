@@ -37,3 +37,7 @@ logs
 # Operating System
 .DS_Store
 Thumbs.db
+
+# Vite
+.vite
+*.local
