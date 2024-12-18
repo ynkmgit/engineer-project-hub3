@@ -10,11 +10,13 @@ const Preview = ({ markdown, isHtml, css }) => {
     const iframe = iframeRef.current
     if (!iframe) return
 
-    // Create a blob URL for the content
+    // Create a blob URL for the content with proper encoding
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>${css}</style>
         </head>
         <body>
@@ -22,7 +24,7 @@ const Preview = ({ markdown, isHtml, css }) => {
         </body>
       </html>
     `
-    const blob = new Blob([htmlContent], { type: 'text/html' })
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
 
     // Set the iframe src to the blob URL
