@@ -66,7 +66,9 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
                   type: 'elementSelected',
                   tagName: element.tagName.toLowerCase(),
                   cssProperties,
-                  path
+                  path,
+                  id: element.id || '',
+                  className: element.className || ''
                 }, '*');
               }
             }, true);

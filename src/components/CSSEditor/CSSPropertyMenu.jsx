@@ -73,9 +73,11 @@ const parseValueAndUnit = (value) => {
   return { value: match[1], unit: match[2] };
 };
 
-const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewStyles }) => {
+const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewStyles, onUpdateElement }) => {
   const [styles, setStyles] = useState({});
   const [selector, setSelector] = useState('');
+  const [elementId, setElementId] = useState('');
+  const [elementClasses, setElementClasses] = useState('');
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -126,7 +128,15 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
 
   useEffect(() => {
     if (selectedElement) {
+      console.log('Selected Element:', {
+        id: selectedElement.id,
+        className: selectedElement.className,
+        path: selectedElement.path
+      });
+
       setSelector(selectedElement.path);
+      setElementId(selectedElement.id || '');
+      setElementClasses(selectedElement.className || '');
       const initialStyles = {};
       commonProperties.forEach(prop => {
         if (prop.type === 'margin') {
@@ -211,12 +221,32 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
     onClose();
   };
 
+  const handleElementUpdate = () => {
+    if (!selectedElement) return;
+
+    const updates = {
+      id: elementId.trim(),
+      className: elementClasses.trim(),
+      originalPath: selectedElement.path
+    };
+
+    if (!updates.id) {
+      updates.id = null;
+    }
+    if (!updates.className) {
+      updates.className = null;
+    }
+
+    onUpdateElement(updates);
+    onClose();
+  };
+
   if (!selectedElement) return null;
 
   const getStyleValue = (propName, defaultValue = '') => {
     const value = styles[propName];
     if (value !== undefined && value !== '') return value;
-    // カラー入力の場合��空値は透明として扱う
+    // カラー入力の場合空値は透明として扱う
     const prop = commonProperties.find(p => p.name === propName);
     if (prop?.type === 'color' && value === '') {
       return defaultValue || '#FFFFFF';
@@ -369,6 +399,29 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
       <div className="selector-display">
         <span>セレクター: </span>
         <code>{selector}</code>
+      </div>
+      <div className="element-attributes">
+        <div className="attribute-item">
+          <label>ID:</label>
+          <input
+            type="text"
+            value={elementId}
+            onChange={(e) => setElementId(e.target.value)}
+            placeholder="要素のID"
+          />
+        </div>
+        <div className="attribute-item">
+          <label>クラス:</label>
+          <input
+            type="text"
+            value={elementClasses}
+            onChange={(e) => setElementClasses(e.target.value)}
+            placeholder="クラス名（スペース区切り）"
+          />
+        </div>
+        <button className="update-element-button" onClick={handleElementUpdate}>
+          ID/クラスを更新
+        </button>
       </div>
       <div className="properties-list">
         {commonProperties.map(prop => (

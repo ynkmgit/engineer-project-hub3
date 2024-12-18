@@ -74,6 +74,36 @@ function App() {
     setActiveTab('css')
   }
 
+  const handleUpdateElement = (updates) => {
+    // HTMLを更新
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const element = doc.querySelector(updates.originalPath);
+
+    if (element) {
+      // IDの更新（nullの場合は属性を削除）
+      if (updates.id === null) {
+        element.removeAttribute('id');
+      } else if (updates.id) {
+        element.id = updates.id;
+      }
+
+      // クラスの更新（nullの場合は属性を削除）
+      if (updates.className === null) {
+        element.removeAttribute('class');
+      } else if (updates.className) {
+        element.className = updates.className;
+      }
+
+      // 更新されたHTMLを設定
+      setHtml(doc.body.innerHTML);
+
+      // Markdownも更新
+      const convertedMarkdown = htmlToMarkdown(doc.body.innerHTML);
+      setMarkdown(convertedMarkdown);
+    }
+  };
+
   const handleApplyStyles = (cssRule) => {
     setCss(prevCss => {
       const cssRules = prevCss.split(/}\s*/)
@@ -128,6 +158,7 @@ function App() {
             setPreviewStyles('')
           }}
           onPreviewStyles={setPreviewStyles}
+          onUpdateElement={handleUpdateElement}
         />
       )}
     </div>
