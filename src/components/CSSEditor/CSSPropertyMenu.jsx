@@ -52,7 +52,7 @@ const rgbaToHex = (rgba) => {
   return hex;
 };
 
-// 数値とユニッ���を分離する関数
+// 数値とユニットを分離する関数
 const parseValueAndUnit = (value) => {
   if (!value) return { value: '', unit: '' };
   const match = value.match(/^(-?\d*\.?\d*)(.*)$/);
@@ -213,70 +213,78 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
         return renderMarginInputs(prop);
       case 'select':
         return (
-          <select
-            value={getStyleValue(prop.name, '')}
-            onChange={(e) => handleStyleChange(prop.name, e.target.value)}
-          >
-            <option value="">選択してください</option>
-            {prop.options.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
+          <div className="input-container">
+            <select
+              value={getStyleValue(prop.name, '')}
+              onChange={(e) => handleStyleChange(prop.name, e.target.value)}
+            >
+              <option value="">選択してください</option>
+              {prop.options.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
         );
       case 'color':
         return (
-          <div className="color-input-wrapper">
-            <input
-              type="color"
-              value={getStyleValue(prop.name, prop.defaultValue)}
-              onChange={(e) => handleStyleChange(prop.name, e.target.value)}
-            />
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => handleStyleChange(prop.name, e.target.value)}
-              placeholder={prop.name}
-            />
+          <div className="input-container">
+            <div className="color-input-wrapper">
+              <input
+                type="color"
+                value={getStyleValue(prop.name, prop.defaultValue)}
+                onChange={(e) => handleStyleChange(prop.name, e.target.value)}
+              />
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => handleStyleChange(prop.name, e.target.value)}
+                placeholder={prop.name}
+              />
+            </div>
           </div>
         );
       case 'number':
         const { value: numValue } = parseValueAndUnit(value);
         return (
-          <div className="number-input-wrapper">
-            <input
-              type="number"
-              value={numValue}
-              min={prop.min}
-              step={prop.step}
-              onChange={(e) => handleNumberChange(prop.name, e.target.value, prop)}
-            />
-            <div className="number-controls">
-              <button
-                type="button"
-                className="number-control-button"
-                onClick={() => handleNumberAdjust(prop.name, true, prop)}
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                className="number-control-button"
-                onClick={() => handleNumberAdjust(prop.name, false, prop)}
-              >
-                ▼
-              </button>
+          <div className="input-container">
+            <div className="number-input-wrapper">
+              <input
+                type="number"
+                value={numValue}
+                min={prop.min}
+                step={prop.step}
+                onChange={(e) => handleNumberChange(prop.name, e.target.value, prop)}
+              />
+              <div className="number-controls">
+                <button
+                  type="button"
+                  className="number-control-button"
+                  onClick={() => handleNumberAdjust(prop.name, true, prop)}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  className="number-control-button"
+                  onClick={() => handleNumberAdjust(prop.name, false, prop)}
+                >
+                  ▼
+                </button>
+              </div>
+              <span className="unit-label">{prop.unit}</span>
             </div>
-            <span className="unit-label">{prop.unit}</span>
           </div>
         );
       default:
         return (
-          <input
-            type="text"
-            value={getStyleValue(prop.name, '')}
-            onChange={(e) => handleStyleChange(prop.name, e.target.value)}
-            placeholder={prop.name}
-          />
+          <div className="input-container">
+            <input
+              type="text"
+              value={getStyleValue(prop.name, '')}
+              onChange={(e) => handleStyleChange(prop.name, e.target.value)}
+              placeholder={prop.name}
+            />
+          </div>
         );
     }
   };
