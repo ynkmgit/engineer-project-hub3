@@ -2,7 +2,7 @@ import { marked } from 'marked'
 import { useEffect, useRef, useState } from 'react'
 import './Preview.css'
 
-const Preview = ({ markdown, isHtml, css, onElementSelect }) => {
+const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
   const iframeRef = useRef(null)
   const content = isHtml ? markdown : marked(markdown)
   const [isSelectionMode, setIsSelectionMode] = useState(false)
@@ -19,6 +19,7 @@ const Preview = ({ markdown, isHtml, css, onElementSelect }) => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
             ${css}
+            ${previewStyles || ''}
             ${isSelectionMode ? `
               * {
                 cursor: pointer !important;
@@ -94,7 +95,7 @@ const Preview = ({ markdown, isHtml, css, onElementSelect }) => {
       URL.revokeObjectURL(url);
       window.removeEventListener('message', handleMessage);
     }
-  }, [content, css, isSelectionMode])
+  }, [content, css, isSelectionMode, previewStyles])
 
   return (
     <div className="preview-section">

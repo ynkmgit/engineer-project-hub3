@@ -28,7 +28,7 @@ const rgbaToHex = (rgba) => {
   const g = parseInt(values[1]);
   const b = parseInt(values[2]);
 
-  // 16進数に変換して結合
+  // 16進数���変換して結合
   const hex = '#' + [r, g, b]
     .map(x => {
       const hex = x.toString(16);
@@ -39,7 +39,7 @@ const rgbaToHex = (rgba) => {
   return hex;
 };
 
-const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
+const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewStyles }) => {
   const [styles, setStyles] = useState({});
   const [selector, setSelector] = useState('');
 
@@ -70,7 +70,25 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
       });
       setStyles(initialStyles);
     }
+
+    // コンポーネントがアンマウントされる時にプレビューをクリア
+    return () => {
+      onPreviewStyles?.('');
+    };
   }, [selectedElement]);
+
+  // スタイルが変更されるたびにプレビューを更新
+  useEffect(() => {
+    if (selector && Object.keys(styles).length > 0) {
+      const previewRule = `${selector} {
+        ${Object.entries(styles)
+          .filter(([_, value]) => value)
+          .map(([prop, value]) => `${prop}: ${value} !important;`)
+          .join('\n        ')}
+      }`;
+      onPreviewStyles?.(previewRule);
+    }
+  }, [styles, selector]);
 
   const handleStyleChange = (property, value) => {
     setStyles(prev => ({
@@ -87,6 +105,12 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
         .join('\n      ')}
     }`;
     onApplyStyles(cssRule);
+    onClose();
+  };
+
+  const handleClose = () => {
+    onPreviewStyles?.('');
+    onClose();
   };
 
   if (!selectedElement) return null;
@@ -106,7 +130,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose }) => {
     <div className="css-property-menu">
       <div className="menu-header">
         <h3>スタイル編集: {selectedElement.tagName}</h3>
-        <button className="close-button" onClick={onClose}>×</button>
+        <button className="close-button" onClick={handleClose}>×</button>
       </div>
       <div className="selector-display">
         <span>セレクター: </span>

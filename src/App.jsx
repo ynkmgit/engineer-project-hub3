@@ -13,6 +13,7 @@ function App() {
   const [css, setCss] = useState('/* Add your styles here */\n\nbody {\n  font-family: Arial, sans-serif;\n}')
   const [activeTab, setActiveTab] = useState('markdown')
   const [selectedElement, setSelectedElement] = useState(null)
+  const [previewStyles, setPreviewStyles] = useState('')
 
   const handleContentChange = (value) => {
     switch (activeTab) {
@@ -75,7 +76,6 @@ function App() {
 
   const handleApplyStyles = (cssRule) => {
     setCss(prevCss => {
-      // CSSルールを追加または更新
       const cssRules = prevCss.split(/}\s*/)
       const selector = cssRule.split('{')[0].trim()
       const existingRuleIndex = cssRules.findIndex(rule =>
@@ -83,20 +83,18 @@ function App() {
       )
 
       if (existingRuleIndex !== -1) {
-        // 既存のルールを更新
         cssRules[existingRuleIndex] = cssRule
       } else {
-        // 新しいルールを追加
         cssRules.push(cssRule)
       }
 
-      // 最後の空の要素を削除し、閉じ括弧を追加
       return cssRules
         .filter(rule => rule.trim())
         .map(rule => rule.trim() + (rule.endsWith('}') ? '' : '}'))
         .join('\n\n')
     })
     setSelectedElement(null)
+    setPreviewStyles('')
   }
 
   return (
@@ -118,13 +116,18 @@ function App() {
         markdown={activeTab === 'markdown' ? markdown : html}
         isHtml={activeTab === 'html'}
         css={css}
+        previewStyles={previewStyles}
         onElementSelect={handleElementSelect}
       />
       {selectedElement && (
         <CSSPropertyMenu
           selectedElement={selectedElement}
           onApplyStyles={handleApplyStyles}
-          onClose={() => setSelectedElement(null)}
+          onClose={() => {
+            setSelectedElement(null)
+            setPreviewStyles('')
+          }}
+          onPreviewStyles={setPreviewStyles}
         />
       )}
     </div>
