@@ -20,6 +20,19 @@ const commonProperties = [
   { name: 'border-radius', type: 'number', unit: 'px', min: 0, step: 1 },
   { name: 'text-align', type: 'select', options: ['left', 'center', 'right', 'justify'] },
   { name: 'position', type: 'select', options: ['static', 'relative', 'absolute', 'fixed'] },
+  { name: 'display', type: 'select', options: ['block', 'inline', 'inline-block', 'flex', 'grid', 'none'] },
+  // Flexbox properties
+  { name: 'flex-direction', type: 'select', options: ['row', 'row-reverse', 'column', 'column-reverse'] },
+  { name: 'justify-content', type: 'select', options: ['flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly'] },
+  { name: 'align-items', type: 'select', options: ['stretch', 'flex-start', 'flex-end', 'center', 'baseline'] },
+  { name: 'flex-wrap', type: 'select', options: ['nowrap', 'wrap', 'wrap-reverse'] },
+  { name: 'gap', type: 'number', unit: 'px', min: 0, step: 1 },
+  { name: 'flex-grow', type: 'number', min: 0, step: 1 },
+  { name: 'flex-shrink', type: 'number', min: 0, step: 1 },
+  { name: 'flex-basis', type: 'text' },
+  { name: 'align-self', type: 'select', options: ['auto', 'flex-start', 'flex-end', 'center', 'baseline', 'stretch'] },
+  { name: 'order', type: 'number', step: 1 },
+  // Original properties
   { name: 'top', type: 'number', unit: 'px', step: 1 },
   { name: 'left', type: 'number', unit: 'px', step: 1 },
   { name: 'width', type: 'number', unit: 'px', min: 0, step: 1 },
@@ -203,7 +216,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   const getStyleValue = (propName, defaultValue = '') => {
     const value = styles[propName];
     if (value !== undefined && value !== '') return value;
-    // カラー入力の場合、空値は透明として扱う
+    // カラー入力の場合��空値は透明として扱う
     const prop = commonProperties.find(p => p.name === propName);
     if (prop?.type === 'color' && value === '') {
       return defaultValue || '#FFFFFF';
