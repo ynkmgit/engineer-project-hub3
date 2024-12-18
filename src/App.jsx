@@ -42,19 +42,14 @@ function App() {
 
   const handleConvertToHtml = () => {
     try {
-      const convertedHtml = markdownToHtml(markdown)
-      // Format the HTML with proper indentation
-      const formattedHtml = convertedHtml
-        .replace(/></g, '>\n<')
-        .replace(/^/gm, '  ')
-        .trim()
-      setHtml(formattedHtml)
-      setActiveTab('html')
+      const convertedHtml = markdownToHtml(markdown);
+      setHtml(convertedHtml);
+      setActiveTab('html');
     } catch (error) {
-      console.error('Error converting Markdown to HTML:', error)
-      alert('Error converting Markdown to HTML. Please check your Markdown syntax.')
+      console.error('Error converting Markdown to HTML:', error);
+      alert('Error converting Markdown to HTML. Please check your Markdown syntax.');
     }
-  }
+  };
 
   const getCurrentContent = () => {
     switch (activeTab) {
@@ -96,10 +91,11 @@ function App() {
       }
 
       // 更新されたHTMLを設定
-      setHtml(doc.body.innerHTML);
+      const updatedHtml = doc.body.innerHTML;
+      setHtml(updatedHtml);
 
       // Markdownも更新
-      const convertedMarkdown = htmlToMarkdown(doc.body.innerHTML);
+      const convertedMarkdown = htmlToMarkdown(updatedHtml);
       setMarkdown(convertedMarkdown);
     }
   };

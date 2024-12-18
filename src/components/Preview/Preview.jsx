@@ -1,10 +1,11 @@
 import { marked } from 'marked'
 import { useEffect, useRef, useState } from 'react'
+import { markdownToHtml } from '../../utils/converter'
 import './Preview.css'
 
 const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
   const iframeRef = useRef(null)
-  const content = isHtml ? markdown : marked(markdown)
+  const content = isHtml ? markdown : markdownToHtml(markdown)
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedPath, setSelectedPath] = useState(null)
 
