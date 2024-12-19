@@ -1,7 +1,23 @@
-import { marked } from 'marked'
 import { useEffect, useRef, useState } from 'react'
 import { markdownToHtml } from '../../utils/converter'
 import './Preview.css'
+
+// 計算済みスタイル取得用の関数定義
+const stylesToGet = [
+  'color',
+  'background-color',
+  'font-size',
+  'font-weight',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'padding',
+  'border-radius',
+  'text-align',
+  'position',
+  'display'
+];
 
 const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
   const iframeRef = useRef(null)
@@ -49,20 +65,27 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
             ` : ''}
           </style>
           <script>
+            function getComputedProperties(element) {
+              const computedStyles = window.getComputedStyle(element);
+              const cssProperties = {};
+              const properties = ${JSON.stringify(stylesToGet)};
+              
+              properties.forEach(prop => {
+                cssProperties[prop] = computedStyles.getPropertyValue(prop);
+              });
+              
+              return cssProperties;
+            }
+
             document.addEventListener('click', (e) => {
               if (${isSelectionMode}) {
                 e.preventDefault();
                 e.stopPropagation();
                 
                 const element = e.target;
-                const styles = window.getComputedStyle(element);
-                const cssProperties = {};
-                
-                for (let prop of styles) {
-                  cssProperties[prop] = styles.getPropertyValue(prop);
-                }
-
                 const path = generateSelector(element);
+                const cssProperties = getComputedProperties(element);
+
                 window.parent.postMessage({
                   type: 'elementSelected',
                   tagName: element.tagName.toLowerCase(),
@@ -79,10 +102,20 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
               if (element === document.body) return 'body';
               
               let selector = element.tagName.toLowerCase();
+              
               if (element.id) {
                 selector += '#' + element.id;
-              } else if (element.className) {
+              } 
+              else if (element.className) {
                 selector += '.' + Array.from(element.classList).join('.');
+              }
+              else {
+                const parent = element.parentElement;
+                if (parent) {
+                  const children = parent.children;
+                  const index = Array.from(children).indexOf(element);
+                  selector += ':nth-child(' + (index + 1) + ')';
+                }
               }
               
               const parent = element.parentElement;

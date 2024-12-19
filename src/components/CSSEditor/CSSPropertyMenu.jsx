@@ -23,11 +23,11 @@ const commonProperties = [
   { name: 'display', type: 'select', options: ['block', 'inline', 'inline-block', 'flex', 'grid', 'none'] }
 ];
 
-// カラー値をHEX形式に変換する関数
 const rgbaToHex = (rgba) => {
   if (rgba === 'rgba(0, 0, 0, 0)' || rgba === 'transparent' || !rgba) {
     return '';
   }
+  // rgb(r, g, b) または rgba(r, g, b, a) の形式をサポート
   const values = rgba.match(/\d+(\.\d+)?/g);
   if (!values) return null;
   
@@ -45,12 +45,33 @@ const rgbaToHex = (rgba) => {
   return hex;
 };
 
-// 数値とユニットを分離する関数
+// 数値とユニットを分離する関数を改善
 const parseValueAndUnit = (value) => {
   if (!value) return { value: '', unit: '' };
+  // 負の値もサポート
   const match = value.match(/^(-?\d*\.?\d*)(.*)$/);
   if (!match) return { value: '', unit: '' };
   return { value: match[1], unit: match[2] };
+};
+
+// デフォルト値をチェックする関数を追加
+const isDefaultValue = (property, value) => {
+  const defaultValues = {
+    'color': 'rgb(0, 0, 0)',
+    'background-color': 'rgba(0, 0, 0, 0)',
+    'font-weight': 'normal',
+    'margin-top': '0px',
+    'margin-right': '0px',
+    'margin-bottom': '0px',
+    'margin-left': '0px',
+    'padding': '0px',
+    'border-radius': '0px',
+    'text-align': 'start',
+    'position': 'static',
+    'display': 'block'
+  };
+  
+  return defaultValues[property] === value;
 };
 
 const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewStyles, onUpdateElement }) => {
@@ -61,6 +82,42 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // 要素選択時の初期値設定を改善
+  useEffect(() => {
+    if (selectedElement) {
+      const { tagName, id, className, path, cssProperties } = selectedElement;
+      setSelector(path);
+      setElementId(id || '');
+      setElementClasses(className || '');
+      
+      // 既存のスタイル値を初期値として設定
+      const initialStyles = {};
+      commonProperties.forEach(prop => {
+        if (prop.type === 'margin') {
+          prop.subProperties.forEach(subProp => {
+            const value = cssProperties[subProp.name];
+            if (value && !isDefaultValue(subProp.name, value)) {
+              initialStyles[subProp.name] = value;
+            }
+          });
+        } else {
+          const value = cssProperties[prop.name];
+          if (value && !isDefaultValue(prop.name, value)) {
+            if (prop.type === 'color') {
+              const hexValue = rgbaToHex(value);
+              if (hexValue) {
+                initialStyles[prop.name] = hexValue;
+              }
+            } else {
+              initialStyles[prop.name] = value;
+            }
+          }
+        }
+      });
+      setStyles(initialStyles);
+    }
+  }, [selectedElement]);
 
   // ドラッグ開始時の処理
   const handleMouseDown = (e) => {
@@ -107,15 +164,6 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   }, [isDragging, dragOffset]);
 
   useEffect(() => {
-    if (selectedElement) {
-      const { tagName, id, className, path } = selectedElement;
-      setSelector(path);
-      setElementId(id || '');
-      setElementClasses(className || '');
-    }
-  }, [selectedElement]);
-
-  useEffect(() => {
     if (selector && Object.keys(styles).length > 0) {
       const previewRule = formatCSSRule(selector, styles, true);
       onPreviewStyles?.(previewRule);
@@ -133,10 +181,17 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   };
 
   const handleStyleChange = (property, value) => {
-    setStyles(prev => ({
-      ...prev,
-      [property]: value
-    }));
+    setStyles(prev => {
+      const newStyles = { ...prev };
+      
+      if (value === '' || isDefaultValue(property, value)) {
+        delete newStyles[property];
+      } else {
+        newStyles[property] = value;
+      }
+      
+      return newStyles;
+    });
   };
 
   const handleNumberChange = (property, rawValue, prop) => {
@@ -168,6 +223,8 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   const getStyleValue = (propName, defaultValue = '') => {
     const value = styles[propName];
     if (value !== undefined && value !== '') return value;
+    
+    // カラーピッカーの場合、デフォルト値を返す
     const prop = commonProperties.find(p => p.name === propName);
     if (prop?.type === 'color' && value === '') {
       return defaultValue || '#FFFFFF';
