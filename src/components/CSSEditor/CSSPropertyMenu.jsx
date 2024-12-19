@@ -30,18 +30,18 @@ const rgbaToHex = (rgba) => {
   // rgb(r, g, b) または rgba(r, g, b, a) の形式をサポート
   const values = rgba.match(/\d+(\.\d+)?/g);
   if (!values) return null;
-  
+
   const r = parseInt(values[0]);
   const g = parseInt(values[1]);
   const b = parseInt(values[2]);
-  
+
   const hex = '#' + [r, g, b]
     .map(x => {
       const hex = x.toString(16);
       return hex.length === 1 ? '0' + hex : hex;
     })
     .join('');
-  
+
   return hex;
 };
 
@@ -70,7 +70,7 @@ const isDefaultValue = (property, value) => {
     'position': 'static',
     'display': 'block'
   };
-  
+
   return defaultValues[property] === value;
 };
 
@@ -90,7 +90,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
       setSelector(path);
       setElementId(id || '');
       setElementClasses(className || '');
-      
+
       // 既存のスタイル値を初期値として設定
       const initialStyles = {};
       commonProperties.forEach(prop => {
@@ -122,7 +122,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   // ドラッグ開始時の処理
   const handleMouseDown = (e) => {
     if (!e.target.closest('.menu-header') || e.target.closest('.close-button')) return;
-    
+
     setIsDragging(true);
     const rect = e.currentTarget.getBoundingClientRect();
     setDragOffset({
@@ -135,13 +135,13 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
-      
+
       const newX = e.clientX - dragOffset.x;
       const newY = e.clientY - dragOffset.y;
-      
+
       const maxX = window.innerWidth - 320;
       const maxY = window.innerHeight - 100;
-      
+
       setPosition({
         x: Math.max(0, Math.min(maxX, newX)),
         y: Math.max(0, Math.min(maxY, newY))
@@ -174,22 +174,22 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
     const styleEntries = Object.entries(styles)
       .filter(([_, value]) => value)
       .map(([prop, value]) => `${prop}: ${value}${isPreview ? ' !important' : ''};`);
-    
+
     if (styleEntries.length === 0) return '';
-    
+
     return `${selector} {\n  ${styleEntries.join('\n  ')}\n}`;
   };
 
   const handleStyleChange = (property, value) => {
     setStyles(prev => {
       const newStyles = { ...prev };
-      
+
       if (value === '' || isDefaultValue(property, value)) {
         delete newStyles[property];
       } else {
         newStyles[property] = value;
       }
-      
+
       return newStyles;
     });
   };
@@ -223,7 +223,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   const getStyleValue = (propName, defaultValue = '') => {
     const value = styles[propName];
     if (value !== undefined && value !== '') return value;
-    
+
     // カラーピッカーの場合、デフォルト値を返す
     const prop = commonProperties.find(p => p.name === propName);
     if (prop?.type === 'color' && value === '') {
@@ -281,11 +281,15 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
             <div className="color-input-wrapper">
               <input
                 type="color"
+                id={`color-${prop.name}`}
+                name={`color-${prop.name}`}
                 value={getStyleValue(prop.name, prop.defaultValue)}
                 onChange={(e) => handleStyleChange(prop.name, e.target.value)}
               />
               <input
                 type="text"
+                id={`text-${prop.name}`}
+                name={`text-${prop.name}`}
                 value={styles[prop.name] || ''}
                 onChange={(e) => handleStyleChange(prop.name, e.target.value)}
                 placeholder={prop.name}
@@ -300,6 +304,8 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
             <div className="number-input-wrapper">
               <input
                 type="number"
+                id={`number-${prop.name}`}
+                name={`number-${prop.name}`}
                 value={numValue}
                 min={prop.min}
                 step={prop.step}
@@ -314,6 +320,8 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
           <div className="input-container">
             <input
               type="text"
+              id={`default-${prop.name}`}
+              name={`default-${prop.name}`}
               value={getStyleValue(prop.name, '')}
               onChange={(e) => handleStyleChange(prop.name, e.target.value)}
               placeholder={prop.name}
