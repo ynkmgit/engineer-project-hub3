@@ -44,7 +44,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
       }
     }, { passive: true });
 
-    // スクロール位置を設定する関数
     function setScrollPosition(percentage) {
       if (!isScrolling) {
         isScrolling = true;
@@ -64,7 +63,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
       }
     }
 
-    // メッセージハンドラ
     window.addEventListener('message', function(event) {
       if (event.data.type === 'setScrollPosition') {
         setScrollPosition(event.data.percentage);
@@ -77,6 +75,61 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
       }
     });
   `;
+
+  const openInNewTab = () => {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Preview</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              box-sizing: border-box;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            }
+            ${css}
+          </style>
+          <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+          <script>
+            document.addEventListener('DOMContentLoaded', () => {
+              mermaid.initialize({
+                startOnLoad: false,
+                theme: 'default',
+                securityLevel: 'loose',
+                fontFamily: 'sans-serif'
+              });
+
+              const mermaidDivs = document.querySelectorAll('.mermaid');
+              mermaidDivs.forEach(async (div, index) => {
+                try {
+                  const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                  const diagramText = div.textContent.trim();
+                  const { svg } = await mermaid.render(id, diagramText);
+                  div.innerHTML = svg;
+                } catch (error) {
+                  console.error('Error rendering mermaid:', error);
+                  div.innerHTML = '<pre>Error rendering diagram: ' + error.message + '</pre>';
+                }
+              });
+            });
+          </script>
+        </head>
+        <body>
+          ${content}
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    // メモリリークを防ぐため、URLを解放
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -165,7 +218,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
               });
             });
 
-            // 要素選択のためのクリックイベントハンドラーを追加
             document.addEventListener('click', function(e) {
               if (isInSelectionMode) {
                 e.preventDefault();
@@ -175,7 +227,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
                 let path = [];
                 let cssProperties = {};
 
-                // CSSプロパティを取得
                 const computedStyle = window.getComputedStyle(element);
                 const properties = ['color', 'background-color', 'font-weight', 'margin-top', 'margin-right', 
                   'margin-bottom', 'margin-left', 'padding', 'border-radius', 'text-align', 'position', 'display'];
@@ -184,7 +235,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
                   cssProperties[prop] = computedStyle.getPropertyValue(prop);
                 });
 
-                // セレクターパスを構築
                 while (element && element.tagName !== 'BODY') {
                   let selector = element.tagName.toLowerCase();
                   if (element.id) {
@@ -201,7 +251,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
                   element = element.parentElement;
                 }
 
-                // 親ウィンドウにメッセージを送信
                 window.parent.postMessage({
                   type: 'elementSelected',
                   path: path.join(' > '),
@@ -213,7 +262,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
               }
             }, true);
 
-            // メッセージハンドラ
             window.addEventListener('message', function(event) {
               if (event.data.type === 'setScrollPosition') {
                 setScrollPosition(event.data.percentage);
@@ -250,7 +298,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
 
     window.addEventListener('message', handleMessage);
 
-    // iframeのロード完了後にスタイルを更新
     iframe.onload = () => {
       updateStyles();
     };
@@ -259,9 +306,8 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
       URL.revokeObjectURL(url);
       window.removeEventListener('message', handleMessage);
     }
-  }, [content]);
+  }, [content, css, previewStyles, isSelectionMode, selectedPath, scrollScript]);
 
-  // CSSの変更を監視して即座に反映
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentDocument) return;
@@ -305,7 +351,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
     }
   }, [css, previewStyles, isSelectionMode, selectedPath]);
 
-  // 選択モードの切り替えを監視
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) return;
@@ -316,7 +361,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
     }, '*');
   }, [isSelectionMode]);
 
-  // スクロール位置の同期
   useEffect(() => {
     const iframe = iframeRef.current;
     if (iframe && iframe.contentWindow && scrollPosition) {
@@ -341,6 +385,12 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
         >
           要素を選択
         </button>
+        <button
+          className="open-new-tab-button"
+          onClick={openInNewTab}
+        >
+          新しいタブで開く
+        </button>
       </div>
       <iframe
         ref={iframeRef}
@@ -350,7 +400,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
         onLoad={() => {
           const iframe = iframeRef.current;
           if (iframe && iframe.contentWindow) {
-            // 初期状態を設定
             iframe.contentWindow.postMessage({
               type: 'toggleSelectionMode',
               isSelectionMode

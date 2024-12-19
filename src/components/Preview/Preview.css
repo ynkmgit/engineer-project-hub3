@@ -8,9 +8,12 @@
   padding: 8px;
   background-color: #f5f5f5;
   border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 8px;
 }
 
-.selection-mode-button {
+.selection-mode-button,
+.open-new-tab-button {
   padding: 6px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -20,7 +23,8 @@
   transition: all 0.2s ease;
 }
 
-.selection-mode-button:hover {
+.selection-mode-button:hover,
+.open-new-tab-button:hover {
   background-color: #f0f0f0;
 }
 
