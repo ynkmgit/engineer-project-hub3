@@ -10,12 +10,6 @@ const TabSelector = ({ activeTab, onTabChange }) => {
         Markdown
       </button>
       <button
-        className={`tab-button ${activeTab === 'html' ? 'active' : ''}`}
-        onClick={() => onTabChange('html')}
-      >
-        HTML
-      </button>
-      <button
         className={`tab-button ${activeTab === 'css' ? 'active' : ''}`}
         onClick={() => onTabChange('css')}
       >

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Editor from './components/Editor/Editor'
 import Preview from './components/Preview/Preview'
 import TabSelector from './components/TabSelector/TabSelector'
 import Toolbar from './components/Toolbar/Toolbar'
 import CSSPropertyMenu from './components/CSSEditor/CSSPropertyMenu'
 import { htmlToMarkdown, markdownToHtml } from './utils/converter'
+import websocketService from './services/websocket'
 import './styles/global.css'
 
 function App() {
@@ -15,48 +16,46 @@ function App() {
   const [selectedElement, setSelectedElement] = useState(null)
   const [previewStyles, setPreviewStyles] = useState('')
 
+  useEffect(() => {
+    // WebSocket接続の確立
+    websocketService.connect();
+
+    // コンテンツ変更の購読
+    const unsubscribe = websocketService.subscribe('contentChange', (data) => {
+      const { mode, content } = data;
+      switch (mode) {
+        case 'markdown':
+          setMarkdown(content);
+          break;
+        case 'css':
+          setCss(content);
+          break;
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      websocketService.disconnect();
+    };
+  }, []);
+
   const handleContentChange = (value) => {
     switch (activeTab) {
       case 'markdown':
-        setMarkdown(value)
-        break
-      case 'html':
-        setHtml(value)
-        break
+        setMarkdown(value);
+        const convertedHtml = markdownToHtml(value);
+        setHtml(convertedHtml);
+        break;
       case 'css':
-        setCss(value)
-        break
+        setCss(value);
+        break;
     }
   }
-
-  const handleConvertToMarkdown = () => {
-    try {
-      const convertedMarkdown = htmlToMarkdown(html)
-      setMarkdown(convertedMarkdown)
-      setActiveTab('markdown')
-    } catch (error) {
-      console.error('Error converting HTML to Markdown:', error)
-      alert('Error converting HTML to Markdown. Please check your HTML syntax.')
-    }
-  }
-
-  const handleConvertToHtml = () => {
-    try {
-      const convertedHtml = markdownToHtml(markdown);
-      setHtml(convertedHtml);
-      setActiveTab('html');
-    } catch (error) {
-      console.error('Error converting Markdown to HTML:', error);
-      alert('Error converting Markdown to HTML. Please check your Markdown syntax.');
-    }
-  };
 
   const getCurrentContent = () => {
     switch (activeTab) {
       case 'markdown':
         return markdown
-      case 'html':
-        return html
       case 'css':
         return css
       default:
@@ -128,8 +127,8 @@ function App() {
       <div className="editor-section">
         <TabSelector activeTab={activeTab} onTabChange={setActiveTab} />
         <Toolbar
-          onConvertToMarkdown={handleConvertToMarkdown}
-          onConvertToHtml={handleConvertToHtml}
+          onConvertToMarkdown={null}
+          onConvertToHtml={null}
           activeTab={activeTab}
         />
         <Editor
@@ -139,8 +138,8 @@ function App() {
         />
       </div>
       <Preview
-        markdown={activeTab === 'markdown' ? markdown : html}
-        isHtml={activeTab === 'html'}
+        markdown={markdown} // CSSタブでもマークダウンを表示
+        isHtml={false} // HTML編集を無効化したので常にfalse
         css={css}
         previewStyles={previewStyles}
         onElementSelect={handleElementSelect}

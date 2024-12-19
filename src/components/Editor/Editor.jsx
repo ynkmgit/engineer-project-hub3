@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 import { registerCSSFormatter, defaultEditorConfig } from '../../config/monaco-formatter-config';
 import { parseCSS, stringifyCSS } from '../../utils/css-parser';
+import websocketService from '../../services/websocket';
 import './Editor.css';
 
 const Editor = ({ value, onChange, mode }) => {
@@ -101,17 +102,26 @@ const Editor = ({ value, onChange, mode }) => {
 
   useEffect(() => {
     if (containerRef.current) {
-      editorRef.current = monaco.editor.create(containerRef.current, {
+      const options = {
         ...defaultEditorConfig,
         value: value,
         language: getLanguage(mode),
-      });
+        readOnly: mode === 'html', // HTML編集を無効化
+      };
+
+      editorRef.current = monaco.editor.create(containerRef.current, options);
 
       // コンテンツ変更時のハンドラ
       editorRef.current.onDidChangeModelContent((e) => {
-        if (!isUpdatingRef.current) {
+        if (!isUpdatingRef.current && mode !== 'html') {
           const newValue = editorRef.current.getValue();
           onChange(newValue);
+          
+          // WebSocketで変更を通知
+          websocketService.sendMessage('contentChange', {
+            mode,
+            content: newValue
+          });
         }
       });
 
