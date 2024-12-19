@@ -64,7 +64,23 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
               }
             ` : ''}
           </style>
+          <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
           <script>
+            let mermaidInitialized = false;
+
+            function initializeMermaid() {
+              if (!mermaidInitialized) {
+                console.log('Initializing mermaid...');
+                mermaid.initialize({
+                  startOnLoad: false,
+                  theme: 'default',
+                  securityLevel: 'loose',
+                  fontFamily: 'sans-serif'
+                });
+                mermaidInitialized = true;
+              }
+            }
+
             function getComputedProperties(element) {
               const computedStyles = window.getComputedStyle(element);
               const cssProperties = {};
@@ -125,6 +141,30 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
               
               return selector;
             }
+
+            // マーメイド記法のレンダリング
+            document.addEventListener('DOMContentLoaded', () => {
+              initializeMermaid();
+              console.log('DOM loaded, searching for mermaid diagrams...');
+              const mermaidDivs = document.querySelectorAll('.mermaid');
+              console.log('Found mermaid divs:', mermaidDivs.length);
+              
+              mermaidDivs.forEach(async (div, index) => {
+                console.log('Processing diagram ' + index + ': ', div.textContent);
+                try {
+                  const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                  console.log('Rendering with ID: ' + id);
+                  const diagramText = div.textContent.trim();
+                  console.log('Diagram text:', diagramText);
+                  const { svg } = await mermaid.render(id, diagramText);
+                  console.log('SVG generated');
+                  div.innerHTML = svg;
+                } catch (error) {
+                  console.error('Error rendering mermaid:', error);
+                  div.innerHTML = '<pre>Error rendering diagram: ' + error.message + '</pre>';
+                }
+              });
+            });
           </script>
         </head>
         <body>

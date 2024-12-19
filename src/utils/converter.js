@@ -1,12 +1,37 @@
 import TurndownService from 'turndown';
 import { marked } from 'marked';
 
+// マーメイド記法のカスタムレンダラーを追加
+marked.use({
+  renderer: {
+    code(code, language) {
+      if (language === 'mermaid') {
+        // マーメイド記法のコードをクリーンアップ
+        const cleanCode = code.replace(/^\s+|\s+$/g, '');
+        console.log('Mermaid code:', cleanCode);
+        return `<div class="mermaid">${cleanCode}</div>`;
+      }
+      return `<pre><code class="language-${language}">${code}</code></pre>`;
+    }
+  }
+});
+
 // Turndownサービスのインスタンスを作成
 const turndownService = new TurndownService({
   headingStyle: 'atx',
   hr: '---',
   bulletListMarker: '-',
   codeBlockStyle: 'fenced'
+});
+
+// マーメイド記法のカスタムルールを追加
+turndownService.addRule('mermaid', {
+  filter: (node) => {
+    return node.classList.contains('mermaid');
+  },
+  replacement: (content, node) => {
+    return `\n\`\`\`mermaid\n${content}\n\`\`\`\n`;
+  }
 });
 
 // 要素のID・クラス情報を属性記法に変換する関数
@@ -72,9 +97,16 @@ export const htmlToMarkdown = (html) => {
 
 // マークダウンの属性記法を解析してHTMLタグに変換する関数
 const processMarkdownAttributes = (markdown) => {
+  // マーメイド記法のブロックを一時的に保護
+  const mermaidBlocks = new Map();
+  let processedMarkdown = markdown.replace(/```mermaid\n([\s\S]*?)\n```/g, (match, code) => {
+    const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+    mermaidBlocks.set(id, code.trim());
+    return `MERMAID_PLACEHOLDER_${id}`;
+  });
+
   // 属性情報を抽出して保存
   const attributes = new Map();
-  let processedMarkdown = markdown;
 
   // 見出しの属性を処理
   processedMarkdown = processedMarkdown.replace(
@@ -132,6 +164,15 @@ const processMarkdownAttributes = (markdown) => {
 
   // マークダウンをHTMLに変換
   let html = marked(processedMarkdown);
+
+  // マーメイドブロックを復元
+  mermaidBlocks.forEach((code, id) => {
+    const placeholder = `MERMAID_PLACEHOLDER_${id}`;
+    html = html.replace(
+      new RegExp(placeholder, 'g'),
+      `<div class="mermaid">${code}</div>`
+    );
+  });
 
   // 保存した属性を対応する要素に適用
   attributes.forEach((attr, key) => {
