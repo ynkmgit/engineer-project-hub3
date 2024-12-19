@@ -2,32 +2,79 @@ import { useEffect, useRef, useState } from 'react'
 import { markdownToHtml } from '../../utils/converter'
 import './Preview.css'
 
-// 計算済みスタイル取得用の関数定義
-const stylesToGet = [
-  'color',
-  'background-color',
-  'font-size',
-  'font-weight',
-  'margin-top',
-  'margin-right',
-  'margin-bottom',
-  'margin-left',
-  'padding',
-  'border-radius',
-  'text-align',
-  'position',
-  'display'
-];
+const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScroll, scrollPosition }) => {
+  const iframeRef = useRef(null);
+  const isScrollingRef = useRef(false);
+  const content = isHtml ? markdown : markdownToHtml(markdown);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedPath, setSelectedPath] = useState(null);
 
-const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
-  const iframeRef = useRef(null)
-  const content = isHtml ? markdown : markdownToHtml(markdown)
-  const [isSelectionMode, setIsSelectionMode] = useState(false)
-  const [selectedPath, setSelectedPath] = useState(null)
+  // スクロール同期のスクリプト
+  const scrollScript = `
+    let isScrolling = false;
+    let lastKnownScrollPosition = 0;
+    let ticking = false;
+
+    document.addEventListener('scroll', function(e) {
+      if (!isScrolling) {
+        lastKnownScrollPosition = window.scrollY;
+        
+        if (!ticking) {
+          window.requestAnimationFrame(function() {
+            const scrollHeight = document.documentElement.scrollHeight;
+            const clientHeight = document.documentElement.clientHeight;
+            const maxScroll = scrollHeight - clientHeight;
+            
+            if (maxScroll > 0) {
+              const percentage = lastKnownScrollPosition / maxScroll;
+              window.parent.postMessage({
+                type: 'scroll',
+                scrollInfo: {
+                  scrollTop: lastKnownScrollPosition,
+                  scrollHeight: scrollHeight,
+                  height: clientHeight,
+                  percentage: percentage
+                }
+              }, '*');
+            }
+            ticking = false;
+          });
+          ticking = true;
+        }
+      }
+    }, { passive: true });
+
+    // スクロール位置を設定する関数
+    function setScrollPosition(percentage) {
+      if (!isScrolling) {
+        isScrolling = true;
+        const scrollHeight = document.documentElement.scrollHeight;
+        const clientHeight = document.documentElement.clientHeight;
+        const maxScroll = scrollHeight - clientHeight;
+        const scrollTop = percentage * maxScroll;
+        
+        window.scrollTo({
+          top: scrollTop,
+          behavior: 'instant'
+        });
+
+        setTimeout(() => {
+          isScrolling = false;
+        }, 100);
+      }
+    }
+
+    // メッセージハンドラ
+    window.addEventListener('message', function(event) {
+      if (event.data.type === 'setScrollPosition') {
+        setScrollPosition(event.data.percentage);
+      }
+    });
+  `;
 
   useEffect(() => {
-    const iframe = iframeRef.current
-    if (!iframe) return
+    const iframe = iframeRef.current;
+    if (!iframe) return;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -36,6 +83,11 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              box-sizing: border-box;
+            }
             ${css}
             ${previewStyles || ''}
             ${isSelectionMode ? `
@@ -65,12 +117,12 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
             ` : ''}
           </style>
           <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+          <script>${scrollScript}</script>
           <script>
             let mermaidInitialized = false;
 
             function initializeMermaid() {
               if (!mermaidInitialized) {
-                console.log('Initializing mermaid...');
                 mermaid.initialize({
                   startOnLoad: false,
                   theme: 'default',
@@ -81,83 +133,16 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
               }
             }
 
-            function getComputedProperties(element) {
-              const computedStyles = window.getComputedStyle(element);
-              const cssProperties = {};
-              const properties = ${JSON.stringify(stylesToGet)};
-              
-              properties.forEach(prop => {
-                cssProperties[prop] = computedStyles.getPropertyValue(prop);
-              });
-              
-              return cssProperties;
-            }
-
-            document.addEventListener('click', (e) => {
-              if (${isSelectionMode}) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const element = e.target;
-                const path = generateSelector(element);
-                const cssProperties = getComputedProperties(element);
-
-                window.parent.postMessage({
-                  type: 'elementSelected',
-                  tagName: element.tagName.toLowerCase(),
-                  cssProperties,
-                  path,
-                  id: element.id || '',
-                  className: element.className || ''
-                }, '*');
-              }
-            }, true);
-
-            function generateSelector(element) {
-              if (!element) return '';
-              if (element === document.body) return 'body';
-              
-              let selector = element.tagName.toLowerCase();
-              
-              if (element.id) {
-                selector += '#' + element.id;
-              } 
-              else if (element.className) {
-                selector += '.' + Array.from(element.classList).join('.');
-              }
-              else {
-                const parent = element.parentElement;
-                if (parent) {
-                  const children = parent.children;
-                  const index = Array.from(children).indexOf(element);
-                  selector += ':nth-child(' + (index + 1) + ')';
-                }
-              }
-              
-              const parent = element.parentElement;
-              if (parent && parent !== document.body) {
-                return generateSelector(parent) + ' > ' + selector;
-              }
-              
-              return selector;
-            }
-
             // マーメイド記法のレンダリング
             document.addEventListener('DOMContentLoaded', () => {
               initializeMermaid();
-              console.log('DOM loaded, searching for mermaid diagrams...');
               const mermaidDivs = document.querySelectorAll('.mermaid');
-              console.log('Found mermaid divs:', mermaidDivs.length);
               
               mermaidDivs.forEach(async (div, index) => {
-                console.log('Processing diagram ' + index + ': ', div.textContent);
                 try {
                   const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
-                  console.log('Rendering with ID: ' + id);
                   const diagramText = div.textContent.trim();
-                  console.log('Diagram text:', diagramText);
                   const { svg } = await mermaid.render(id, diagramText);
-                  console.log('SVG generated');
                   div.innerHTML = svg;
                 } catch (error) {
                   console.error('Error rendering mermaid:', error);
@@ -171,17 +156,19 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
           ${content}
         </body>
       </html>
-    `
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
+    `;
 
-    iframe.src = url
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    iframe.src = url;
 
     const handleMessage = (event) => {
       if (event.data.type === 'elementSelected') {
         setSelectedPath(event.data.path);
         onElementSelect?.(event.data);
         setIsSelectionMode(false);
+      } else if (event.data.type === 'scroll' && !isScrollingRef.current) {
+        onScroll?.(event.data.scrollInfo);
       }
     };
 
@@ -191,7 +178,18 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
       URL.revokeObjectURL(url);
       window.removeEventListener('message', handleMessage);
     }
-  }, [content, css, isSelectionMode, previewStyles, selectedPath])
+  }, [content, css, isSelectionMode, previewStyles, selectedPath]);
+
+  // スクロール位置の同期
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (iframe && iframe.contentWindow && scrollPosition) {
+      iframe.contentWindow.postMessage({
+        type: 'setScrollPosition',
+        percentage: scrollPosition.percentage
+      }, '*');
+    }
+  }, [scrollPosition]);
 
   return (
     <div className="preview-section">
@@ -215,7 +213,7 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles }) => {
         sandbox="allow-scripts"
       />
     </div>
-  )
-}
+  );
+};
 
-export default Preview
+export default Preview;
