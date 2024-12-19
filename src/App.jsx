@@ -221,7 +221,7 @@ function App() {
         />
       </div>
       <Preview
-        markdown={activeTab === 'markdown' ? markdown : html}
+        markdown={activeTab === 'css' ? markdown : (activeTab === 'markdown' ? markdown : html)}
         isHtml={activeTab === 'html'}
         css={css}
         previewStyles={previewStyles}
