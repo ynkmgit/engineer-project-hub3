@@ -1,19 +1,31 @@
 import TurndownService from 'turndown';
 import { marked } from 'marked';
+import hljs from 'highlight.js';
 
-// マーメイド記法のカスタムレンダラーを追加
-marked.use({
-  renderer: {
-    code(code, language) {
-      if (language === 'mermaid') {
-        // マーメイド記法のコードをクリーンアップ
-        const cleanCode = code.replace(/^\s+|\s+$/g, '');
-        console.log('Mermaid code:', cleanCode);
-        return `<div class="mermaid">${cleanCode}</div>`;
+// シンタックスハイライトの設定
+const markedOptions = {
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(lang, code).value;
+      } catch (err) {
+        console.error('Highlight.js error:', err);
+        return code;
       }
-      return `<pre><code class="language-${language}">${code}</code></pre>`;
     }
+    return code;
   }
+};
+
+// Markdownパーサーの設定
+marked.setOptions({
+  ...markedOptions,
+  gfm: true,
+  breaks: true,
+  pedantic: false,
+  sanitize: false,
+  smartLists: true,
+  xhtml: true
 });
 
 // Turndownサービスのインスタンスを作成
@@ -27,181 +39,78 @@ const turndownService = new TurndownService({
 // マーメイド記法のカスタムルールを追加
 turndownService.addRule('mermaid', {
   filter: (node) => {
-    return node.classList.contains('mermaid');
+    return node.classList && node.classList.contains('mermaid');
   },
-  replacement: (content, node) => {
+  replacement: (content) => {
     return `\n\`\`\`mermaid\n${content}\n\`\`\`\n`;
   }
 });
 
-// 要素のID・クラス情報を属性記法に変換する関数
-const getAttributeString = (element) => {
-  const attributes = [];
-
-  if (element.id) {
-    attributes.push(`#${element.id}`);
-  }
-
-  if (element.className) {
-    const classes = element.className.split(' ').filter(c => c);
-    if (classes.length > 0) {
-      attributes.push(...classes.map(c => `.${c}`));
-    }
-  }
-
-  return attributes.length > 0 ? ` {${attributes.join(' ')}}` : '';
-};
-
-// 見出し要素のカスタムルールを追加
-turndownService.addRule('headingWithAttributes', {
-  filter: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-  replacement: function (content, node, options) {
-    const hLevel = node.nodeName.charAt(1);
-    const hashes = '#'.repeat(hLevel);
-    const attributeString = getAttributeString(node);
-    return `\n\n${hashes} ${content}${attributeString}\n\n`;
-  }
-});
-
-// 段落要素のカスタムルールを追加
-turndownService.addRule('paragraphWithAttributes', {
-  filter: 'p',
-  replacement: function (content, node, options) {
-    const attributeString = getAttributeString(node);
-    return `\n\n${content}${attributeString}\n\n`;
-  }
-});
-
-// その他のブロック要素のカスタムルールを追加
-turndownService.addRule('blockElementWithAttributes', {
-  filter: ['div', 'section', 'article', 'aside', 'nav', 'header', 'footer'],
-  replacement: function (content, node, options) {
-    const attributeString = getAttributeString(node);
-    return `\n\n${content}${attributeString}\n\n`;
-  }
-});
-
-// インライン要素のカスタムルールを追加
-turndownService.addRule('inlineElementWithAttributes', {
-  filter: ['span', 'strong', 'em', 'code', 'a'],
-  replacement: function (content, node, options) {
-    const attributeString = getAttributeString(node);
-    // インライン要素の場合は改行を入れない
-    return `${content}${attributeString}`;
-  }
-});
-
 export const htmlToMarkdown = (html) => {
-  return turndownService.turndown(html);
-};
-
-// マークダウンの属性記法を解析してHTMLタグに変換する関数
-const processMarkdownAttributes = (markdown) => {
-  // マーメイド記法のブロックを一時的に保護
-  const mermaidBlocks = new Map();
-  let processedMarkdown = markdown.replace(/```mermaid\n([\s\S]*?)\n```/g, (match, code) => {
-    const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-    mermaidBlocks.set(id, code.trim());
-    return `MERMAID_PLACEHOLDER_${id}`;
-  });
-
-  // 属性情報を抽出して保存
-  const attributes = new Map();
-
-  // 見出しの属性を処理
-  processedMarkdown = processedMarkdown.replace(
-    /^(#{1,6})\s+(.+?)\s*(\{[#\.][^\}]+\})\s*$/gm,
-    (match, hashes, content, attrs) => {
-      const level = hashes.length;
-      const key = `${content.trim()}_h${level}`;
-
-      if (attrs) {
-        const attrList = attrs.slice(1, -1).split(/\s+/);
-        let id = '';
-        const classes = [];
-
-        attrList.forEach(attr => {
-          if (attr.startsWith('#')) {
-            id = attr.slice(1);
-          } else if (attr.startsWith('.')) {
-            classes.push(attr.slice(1));
-          }
-        });
-
-        attributes.set(key, { tag: `h${level}`, id, classes });
-      }
-
-      return `${hashes} ${content.trim()}`;
-    }
-  );
-
-  // 段落の属性を処理
-  const paragraphMatches = [...processedMarkdown.matchAll(/^([^#\n].*?)(\{[#\.][^\}]+\})\s*$/gm)];
-  paragraphMatches.reverse().forEach(match => {
-    const [fullMatch, content, attrs] = match;
-    const cleanContent = content.trim();
-    const key = `${cleanContent}_p`;
-
-    const attrList = attrs.slice(1, -1).split(/\s+/);
-    let id = '';
-    const classes = [];
-
-    attrList.forEach(attr => {
-      if (attr.startsWith('#')) {
-        id = attr.slice(1);
-      } else if (attr.startsWith('.')) {
-        classes.push(attr.slice(1));
-      }
-    });
-
-    attributes.set(key, { tag: 'p', id, classes });
-
-    // 属性記法を削除
-    processedMarkdown = processedMarkdown.slice(0, match.index) +
-      cleanContent +
-      processedMarkdown.slice(match.index + fullMatch.length);
-  });
-
-  // マークダウンをHTMLに変換
-  let html = marked(processedMarkdown);
-
-  // マーメイドブロックを復元
-  mermaidBlocks.forEach((code, id) => {
-    const placeholder = `MERMAID_PLACEHOLDER_${id}`;
-    html = html.replace(
-      new RegExp(placeholder, 'g'),
-      `<div class="mermaid">${code}</div>`
-    );
-  });
-
-  // 保存した属性を対応する要素に適用
-  attributes.forEach((attr, key) => {
-    const [content, tag] = key.split('_');
-    const escapedContent = content.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    // 段落の場合は、より柔軟なマッチングを使用
-    const regex = tag === 'p'
-      ? new RegExp(`<p>${escapedContent}(?:</p>|\\s*$)`)
-      : new RegExp(`<${tag}>${escapedContent}</${tag}>`);
-
-    html = html.replace(regex, (match) => {
-      let attrString = '';
-      if (attr.id) attrString += ` id="${attr.id}"`;
-      if (attr.classes.length > 0) attrString += ` class="${attr.classes.join(' ')}"`;
-      return `<${attr.tag}${attrString}>${content}</${attr.tag}>`;
-    });
-  });
-
-  // HTMLを整形
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-
-  // 不要なhead要素とbody要素を削除し、直接HTML文字列を生成
-  return Array.from(doc.body.children)
-    .map(element => element.outerHTML)
-    .join('\n');
+  if (!html) return '';
+  try {
+    return turndownService.turndown(html);
+  } catch (error) {
+    console.error('HTML to Markdown conversion error:', error);
+    return '';
+  }
 };
 
 export const markdownToHtml = (markdown) => {
-  return processMarkdownAttributes(markdown);
+  if (!markdown || typeof markdown !== 'string') {
+    return '';
+  }
+
+  try {
+    // マーメイドブロックを一時的に保護
+    const mermaidBlocks = new Map();
+    let processedMarkdown = markdown.replace(/```mermaid\n([\s\S]*?)```/g, (match, code) => {
+      const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+      mermaidBlocks.set(id, code.trim());
+      return `MERMAID_PLACEHOLDER_${id}`;
+    });
+
+    // 通常のコードブロックを一時的に保護（マーメイド以外）
+    const codeBlocks = new Map();
+    processedMarkdown = processedMarkdown.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+      // マーメイドのプレースホルダーはスキップ
+      if (match.includes('MERMAID_PLACEHOLDER_')) {
+        return match;
+      }
+      const id = `code-${Math.random().toString(36).substr(2, 9)}`;
+      codeBlocks.set(id, { 
+        lang: lang ? lang.trim() : '', 
+        code: code.trim() 
+      });
+      return `CODE_PLACEHOLDER_${id}`;
+    });
+
+    // マークダウンをHTMLに変換
+    let html = marked(processedMarkdown);
+
+    // マーメイドブロックを復元
+    mermaidBlocks.forEach((code, id) => {
+      html = html.replace(
+        `<p>MERMAID_PLACEHOLDER_${id}</p>`,
+        `<div class="mermaid">${code}</div>`
+      );
+    });
+
+    // 通常のコードブロックを復元
+    codeBlocks.forEach(({ lang, code }, id) => {
+      const highlightedCode = lang && hljs.getLanguage(lang)
+        ? hljs.highlight(code, { language: lang }).value
+        : code;
+
+      html = html.replace(
+        `<p>CODE_PLACEHOLDER_${id}</p>`,
+        `<pre><code class="hljs language-${lang}">${highlightedCode}</code></pre>`
+      );
+    });
+
+    return html;
+  } catch (error) {
+    console.error('Markdown to HTML conversion error:', error);
+    return markdown;
+  }
 };

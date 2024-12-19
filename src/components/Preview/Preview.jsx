@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { markdownToHtml } from '../../utils/converter'
 import './Preview.css'
+import 'highlight.js/styles/github.css'
 
 const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScroll, scrollPosition }) => {
   const iframeRef = useRef(null);
@@ -84,6 +85,7 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Preview</title>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
           <style>
             body {
               margin: 0;
@@ -135,52 +137,13 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const updateStyles = () => {
-      const styleElement = iframe.contentDocument?.querySelector('style');
-      if (styleElement) {
-        styleElement.textContent = `
-          body {
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-          }
-          ${css}
-          ${previewStyles || ''}
-          ${isSelectionMode ? `
-            * {
-              cursor: pointer !important;
-            }
-            *:hover {
-              outline: 2px solid #007bff !important;
-            }
-          ` : ''}
-          ${selectedPath ? `
-            ${selectedPath} {
-              outline: 2px solid #007bff !important;
-              outline-offset: 2px !important;
-              position: relative !important;
-            }
-            ${selectedPath}::after {
-              content: '';
-              position: absolute;
-              top: -2px;
-              left: -2px;
-              right: -2px;
-              bottom: -2px;
-              pointer-events: none;
-              border: 1px solid rgba(0, 123, 255, 0.3);
-            }
-          ` : ''}
-        `;
-      }
-    };
-
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
           <style></style>
           <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
           <script>${scrollScript}</script>
@@ -299,7 +262,72 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
     window.addEventListener('message', handleMessage);
 
     iframe.onload = () => {
-      updateStyles();
+      const styleElement = iframe.contentDocument?.querySelector('style');
+      if (styleElement) {
+        styleElement.textContent = `
+          body {
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          }
+
+          /* コードブロックのスタイル */
+          pre {
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            padding: 16px;
+            overflow: auto;
+            font-size: 14px;
+            line-height: 1.45;
+          }
+
+          code {
+            font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+          }
+
+          /* インラインコードのスタイル */
+          :not(pre) > code {
+            background-color: rgba(175, 184, 193, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+            font-size: 85%;
+          }
+
+          .hljs {
+            background: transparent;
+            padding: 0;
+          }
+
+          ${css}
+          ${previewStyles || ''}
+          ${isSelectionMode ? `
+            * {
+              cursor: pointer !important;
+            }
+            *:hover {
+              outline: 2px solid #007bff !important;
+            }
+          ` : ''}
+          ${selectedPath ? `
+            ${selectedPath} {
+              outline: 2px solid #007bff !important;
+              outline-offset: 2px !important;
+              position: relative !important;
+            }
+            ${selectedPath}::after {
+              content: '';
+              position: absolute;
+              top: -2px;
+              left: -2px;
+              right: -2px;
+              bottom: -2px;
+              pointer-events: none;
+              border: 1px solid rgba(0, 123, 255, 0.3);
+            }
+          ` : ''}
+        `;
+      }
     };
 
     return () => {
@@ -307,49 +335,6 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
       window.removeEventListener('message', handleMessage);
     }
   }, [content, css, previewStyles, isSelectionMode, selectedPath, scrollScript]);
-
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentDocument) return;
-
-    const styleElement = iframe.contentDocument.querySelector('style');
-    if (styleElement) {
-      styleElement.textContent = `
-        body {
-          margin: 0;
-          padding: 20px;
-          box-sizing: border-box;
-        }
-        ${css}
-        ${previewStyles || ''}
-        ${isSelectionMode ? `
-          * {
-            cursor: pointer !important;
-          }
-          *:hover {
-            outline: 2px solid #007bff !important;
-          }
-        ` : ''}
-        ${selectedPath ? `
-          ${selectedPath} {
-            outline: 2px solid #007bff !important;
-            outline-offset: 2px !important;
-            position: relative !important;
-          }
-          ${selectedPath}::after {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            pointer-events: none;
-            border: 1px solid rgba(0, 123, 255, 0.3);
-          }
-        ` : ''}
-      `;
-    }
-  }, [css, previewStyles, isSelectionMode, selectedPath]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
