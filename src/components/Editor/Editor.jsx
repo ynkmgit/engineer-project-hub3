@@ -33,7 +33,7 @@ const Editor = ({ value, onChange, mode, onScroll, scrollPosition }) => {
       const scrollHeight = editor.getScrollHeight();
       const height = editor.getLayoutInfo().height;
       const maxScroll = scrollHeight - height;
-      
+
       if (maxScroll > 0) {
         const percentage = scrollTop / maxScroll;
         onScroll?.({
@@ -55,7 +55,7 @@ const Editor = ({ value, onChange, mode, onScroll, scrollPosition }) => {
       const scrollHeight = editor.getScrollHeight();
       const maxScroll = scrollHeight - height;
       const scrollTop = position.percentage * maxScroll;
-      
+
       editor.setScrollTop(scrollTop);
 
       // スクロールロックの解除
@@ -119,20 +119,17 @@ const Editor = ({ value, onChange, mode, onScroll, scrollPosition }) => {
     const currentValue = editorRef.current.getValue();
     if (currentValue === value) return;
 
-    if (mode === 'css' && value.includes('{')) {
-      updateCSSRules(value);
-    } else {
-      const position = editorRef.current.getPosition();
-      const selection = editorRef.current.getSelection();
+    // 単純にエディタの値を更新
+    const position = editorRef.current.getPosition();
+    const selection = editorRef.current.getSelection();
 
-      editorRef.current.setValue(value);
+    editorRef.current.setValue(value);
 
-      if (position) {
-        editorRef.current.setPosition(position);
-      }
-      if (selection) {
-        editorRef.current.setSelection(selection);
-      }
+    if (position) {
+      editorRef.current.setPosition(position);
+    }
+    if (selection) {
+      editorRef.current.setSelection(selection);
     }
 
     const model = editorRef.current.getModel();
@@ -140,6 +137,65 @@ const Editor = ({ value, onChange, mode, onScroll, scrollPosition }) => {
       monaco.editor.setModelLanguage(model, getLanguage(mode));
     }
   }, [value, mode]);
+
+  // CSSルールを更新する関数
+  const updateCSSRules = (selector, properties) => {
+    if (!editorRef.current) return;
+
+    try {
+      const currentValue = editorRef.current.getValue();
+      let cssRules;
+
+      try {
+        cssRules = parseCSS(currentValue);
+        if (!Array.isArray(cssRules)) {
+          cssRules = [];
+        }
+      } catch (e) {
+        console.error('CSSのパースに失敗しました:', e);
+        cssRules = [];
+      }
+
+      // 既存のルールを探す
+      let existingRuleIndex = -1;
+      for (let i = 0; i < cssRules.length; i++) {
+        if (cssRules[i].selector === selector) {
+          existingRuleIndex = i;
+          break;
+        }
+      }
+
+      if (existingRuleIndex !== -1) {
+        // 既存のルールを更新
+        cssRules[existingRuleIndex].properties = {
+          ...cssRules[existingRuleIndex].properties,
+          ...properties
+        };
+      } else {
+        // 新しいルールを追加
+        cssRules.push({
+          selector,
+          properties
+        });
+      }
+
+      // CSSを文字列に変換
+      const newCSSContent = stringifyCSS(cssRules);
+
+      // エディタの内容を更新
+      isUpdatingRef.current = true;
+      editorRef.current.setValue(newCSSContent);
+      onChange(newCSSContent);
+      isUpdatingRef.current = false;
+
+      websocketService.sendMessage('contentChange', {
+        mode: 'css',
+        content: newCSSContent
+      });
+    } catch (error) {
+      console.error('CSSルールの更新中にエラーが発生しました:', error);
+    }
+  };
 
   return (
     <div ref={containerRef} className="editor-container" style={{ overflow: 'hidden' }} />
