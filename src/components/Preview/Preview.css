@@ -1,4 +1,40 @@
+.preview-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.preview-toolbar {
+  padding: 8px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+}
+
+.selection-mode-button {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.selection-mode-button:hover {
+  background-color: #f0f0f0;
+}
+
+.selection-mode-button.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #0056b3;
+}
+
 .preview-container {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background-color: white;
   padding: 20px;
   font-size: 16px;
   line-height: 1.5;
