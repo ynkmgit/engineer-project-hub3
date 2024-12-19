@@ -8,6 +8,7 @@ const Editor = ({ value, onChange, mode }) => {
   const editorRef = useRef(null);
   const containerRef = useRef(null);
   const cssRulesRef = useRef({});
+  const isUpdatingRef = useRef(false);
 
   const getLanguage = (mode) => {
     switch (mode) {
@@ -39,15 +40,21 @@ const Editor = ({ value, onChange, mode }) => {
 
   // CSSルールを更新する関数
   const updateCSSRules = (newRule) => {
-    if (mode !== 'css' || !editorRef.current) return;
+    if (mode !== 'css' || !editorRef.current || isUpdatingRef.current) return;
 
     try {
+      isUpdatingRef.current = true;
+
+      // カーソル位置と選択範囲を保存
+      const position = editorRef.current.getPosition();
+      const selection = editorRef.current.getSelection();
+
       // 現在のCSSルールをパース
       cssRulesRef.current = parseCSS(editorRef.current.getValue());
-      
+
       // 新しいルールをパース
       const newRules = parseCSS(newRule);
-      
+
       // 既存のルールを更新または追加
       Object.entries(newRules).forEach(([selector, styles]) => {
         cssRulesRef.current[selector] = {
@@ -55,18 +62,35 @@ const Editor = ({ value, onChange, mode }) => {
           ...styles
         };
       });
-      
+
       // 更新されたルールを文字列に変換
       const updatedCSS = stringifyCSS(cssRulesRef.current);
-      
-      // エディタの内容を更新
-      editorRef.current.setValue(updatedCSS);
-      
-      // 整形を実行
-      safelyFormatDocument();
-      
+
+      // モデルの内容を直接更新
+      const model = editorRef.current.getModel();
+      if (model) {
+        model.pushEditOperations(
+          [],
+          [{
+            range: model.getFullModelRange(),
+            text: updatedCSS
+          }],
+          () => null
+        );
+      }
+
+      // カーソル位置と選択範囲を復元
+      if (position) {
+        editorRef.current.setPosition(position);
+      }
+      if (selection) {
+        editorRef.current.setSelection(selection);
+      }
+
     } catch (error) {
       console.error('Error updating CSS rules:', error);
+    } finally {
+      isUpdatingRef.current = false;
     }
   };
 
@@ -84,17 +108,17 @@ const Editor = ({ value, onChange, mode }) => {
       });
 
       // コンテンツ変更時のハンドラ
-      editorRef.current.onDidChangeModelContent(() => {
-        const newValue = editorRef.current.getValue();
-        onChange(newValue);
+      editorRef.current.onDidChangeModelContent((e) => {
+        if (!isUpdatingRef.current) {
+          const newValue = editorRef.current.getValue();
+          onChange(newValue);
+        }
       });
 
       // フォーマット時のハンドラ
-      if (editorRef.current) {
-        editorRef.current.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => {
-          safelyFormatDocument();
-        });
-      }
+      editorRef.current.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => {
+        safelyFormatDocument();
+      });
     }
 
     return () => {
@@ -105,23 +129,31 @@ const Editor = ({ value, onChange, mode }) => {
   }, [mode]);
 
   useEffect(() => {
-    if (editorRef.current) {
-      if (mode === 'css' && value.includes('{')) {
-        // CSSルールの場合は更新関数を使用
-        updateCSSRules(value);
-      } else {
-        // その他の場合は直接値を設定
-        const currentValue = editorRef.current.getValue();
-        if (currentValue !== value) {
-          editorRef.current.setValue(value);
-        }
+    if (!editorRef.current || isUpdatingRef.current) return;
+
+    const currentValue = editorRef.current.getValue();
+    if (currentValue === value) return;
+
+    if (mode === 'css' && value.includes('{')) {
+      updateCSSRules(value);
+    } else {
+      const position = editorRef.current.getPosition();
+      const selection = editorRef.current.getSelection();
+
+      editorRef.current.setValue(value);
+
+      if (position) {
+        editorRef.current.setPosition(position);
       }
-      
-      // 言語モードの更新
-      const model = editorRef.current.getModel();
-      if (model) {
-        monaco.editor.setModelLanguage(model, getLanguage(mode));
+      if (selection) {
+        editorRef.current.setSelection(selection);
       }
+    }
+
+    // 言語モードの更新
+    const model = editorRef.current.getModel();
+    if (model) {
+      monaco.editor.setModelLanguage(model, getLanguage(mode));
     }
   }, [value, mode]);
 
