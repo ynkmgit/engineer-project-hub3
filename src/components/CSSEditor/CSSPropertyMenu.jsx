@@ -20,48 +20,28 @@ const commonProperties = [
   { name: 'border-radius', type: 'number', unit: 'px', min: 0, step: 1 },
   { name: 'text-align', type: 'select', options: ['left', 'center', 'right', 'justify'] },
   { name: 'position', type: 'select', options: ['static', 'relative', 'absolute', 'fixed'] },
-  { name: 'display', type: 'select', options: ['block', 'inline', 'inline-block', 'flex', 'grid', 'none'] },
-  // Flexbox properties
-  { name: 'flex-direction', type: 'select', options: ['row', 'row-reverse', 'column', 'column-reverse'] },
-  { name: 'justify-content', type: 'select', options: ['flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly'] },
-  { name: 'align-items', type: 'select', options: ['stretch', 'flex-start', 'flex-end', 'center', 'baseline'] },
-  { name: 'flex-wrap', type: 'select', options: ['nowrap', 'wrap', 'wrap-reverse'] },
-  { name: 'gap', type: 'number', unit: 'px', min: 0, step: 1 },
-  { name: 'flex-grow', type: 'number', min: 0, step: 1 },
-  { name: 'flex-shrink', type: 'number', min: 0, step: 1 },
-  { name: 'flex-basis', type: 'text' },
-  { name: 'align-self', type: 'select', options: ['auto', 'flex-start', 'flex-end', 'center', 'baseline', 'stretch'] },
-  { name: 'order', type: 'number', step: 1 },
-  // Original properties
-  { name: 'top', type: 'number', unit: 'px', step: 1 },
-  { name: 'left', type: 'number', unit: 'px', step: 1 },
-  { name: 'width', type: 'number', unit: 'px', min: 0, step: 1 },
-  { name: 'height', type: 'number', unit: 'px', min: 0, step: 1 },
+  { name: 'display', type: 'select', options: ['block', 'inline', 'inline-block', 'flex', 'grid', 'none'] }
 ];
 
 // カラー値をHEX形式に変換する関数
 const rgbaToHex = (rgba) => {
-  // 透明や未設定の値をチェック
   if (rgba === 'rgba(0, 0, 0, 0)' || rgba === 'transparent' || !rgba) {
     return '';
   }
-
-  // rgba(r, g, b, a) または rgb(r, g, b) 形式の文字列を解析
   const values = rgba.match(/\d+(\.\d+)?/g);
   if (!values) return null;
-
+  
   const r = parseInt(values[0]);
   const g = parseInt(values[1]);
   const b = parseInt(values[2]);
-
-  // 16進数に変換して結合
+  
   const hex = '#' + [r, g, b]
     .map(x => {
       const hex = x.toString(16);
       return hex.length === 1 ? '0' + hex : hex;
     })
     .join('');
-
+  
   return hex;
 };
 
@@ -81,14 +61,11 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [elementInfo, setElementInfo] = useState({ tagName: '', id: '', className: '' });
 
   // ドラッグ開始時の処理
   const handleMouseDown = (e) => {
-    // メニューヘッダー以外でのドラッグを無効化
-    if (!e.target.closest('.menu-header') ||
-      e.target.closest('.close-button')) return;
-
+    if (!e.target.closest('.menu-header') || e.target.closest('.close-button')) return;
+    
     setIsDragging(true);
     const rect = e.currentTarget.getBoundingClientRect();
     setDragOffset({
@@ -101,14 +78,13 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
-
+      
       const newX = e.clientX - dragOffset.x;
       const newY = e.clientY - dragOffset.y;
-
-      // 画面外に出ないように制限
-      const maxX = window.innerWidth - 320; // メニューの幅を考慮
-      const maxY = window.innerHeight - 100; // 適度な余白を確保
-
+      
+      const maxX = window.innerWidth - 320;
+      const maxY = window.innerHeight - 100;
+      
       setPosition({
         x: Math.max(0, Math.min(maxX, newX)),
         y: Math.max(0, Math.min(maxY, newY))
@@ -133,29 +109,28 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   useEffect(() => {
     if (selectedElement) {
       const { tagName, id, className, path } = selectedElement;
-      setElementInfo({
-        tagName: tagName.toLowerCase(),
-        id: id || '',
-        className: className || ''
-      });
       setSelector(path);
       setElementId(id || '');
       setElementClasses(className || '');
     }
   }, [selectedElement]);
 
-  // スタイルが変更されるたびにプレビューを更新
   useEffect(() => {
     if (selector && Object.keys(styles).length > 0) {
-      const previewRule = `${selector} {
-        ${Object.entries(styles)
-          .filter(([_, value]) => value)
-          .map(([prop, value]) => `${prop}: ${value} !important;`)
-          .join('\n        ')}
-      }`;
+      const previewRule = formatCSSRule(selector, styles, true);
       onPreviewStyles?.(previewRule);
     }
   }, [styles, selector]);
+
+  const formatCSSRule = (selector, styles, isPreview = false) => {
+    const styleEntries = Object.entries(styles)
+      .filter(([_, value]) => value)
+      .map(([prop, value]) => `${prop}: ${value}${isPreview ? ' !important' : ''};`);
+    
+    if (styleEntries.length === 0) return '';
+    
+    return `${selector} {\n  ${styleEntries.join('\n  ')}\n}`;
+  };
 
   const handleStyleChange = (property, value) => {
     setStyles(prev => ({
@@ -170,22 +145,8 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
     handleStyleChange(property, value);
   };
 
-  const handleNumberAdjust = (property, increment, prop) => {
-    const { value: currentValue, unit } = parseValueAndUnit(styles[property]);
-    const numValue = currentValue === '' ? 0 : parseFloat(currentValue);
-    const step = prop.step || 1;
-    const min = prop.min !== undefined ? prop.min : -Infinity;
-    const newValue = Math.max(min, numValue + (increment ? step : -step));
-    handleStyleChange(property, `${newValue}${unit || prop.unit || ''}`);
-  };
-
   const handleApply = () => {
-    const cssRule = `${selector} {
-      ${Object.entries(styles)
-        .filter(([_, value]) => value)
-        .map(([prop, value]) => `${prop}: ${value};`)
-        .join('\n      ')}
-    }`;
+    const cssRule = formatCSSRule(selector, styles);
     onApplyStyles(cssRule);
     onClose();
   };
@@ -201,24 +162,12 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
       id: elementId.trim() || null,
       className: elementClasses.trim() || null
     });
-    onClose(); // 更新後にポップアップを閉じる
+    onClose();
   };
-
-  const handleColorChange = (property, color) => {
-    try {
-      const cssValue = color.hex;
-      updatePreviewStyles(property, cssValue);
-    } catch (e) {
-      // カラー変換エラーは無視
-    }
-  };
-
-  if (!selectedElement) return null;
 
   const getStyleValue = (propName, defaultValue = '') => {
     const value = styles[propName];
     if (value !== undefined && value !== '') return value;
-    // カラー入力の場合空値は透明として扱う
     const prop = commonProperties.find(p => p.name === propName);
     if (prop?.type === 'color' && value === '') {
       return defaultValue || '#FFFFFF';
@@ -252,8 +201,6 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   };
 
   const renderInput = (prop) => {
-    const value = styles[prop.name] || '';
-
     switch (prop.type) {
       case 'margin':
         return renderMarginInputs(prop);
@@ -282,7 +229,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
               />
               <input
                 type="text"
-                value={value}
+                value={styles[prop.name] || ''}
                 onChange={(e) => handleStyleChange(prop.name, e.target.value)}
                 placeholder={prop.name}
               />
@@ -290,7 +237,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
           </div>
         );
       case 'number':
-        const { value: numValue } = parseValueAndUnit(value);
+        const { value: numValue } = parseValueAndUnit(styles[prop.name] || '');
         return (
           <div className="input-container">
             <div className="number-input-wrapper">
@@ -319,6 +266,8 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
     }
   };
 
+  if (!selectedElement) return null;
+
   return (
     <div
       className={`css-property-menu ${isDragging ? 'dragging' : ''}`}
@@ -327,7 +276,7 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
         right: 'auto',
         left: `${position.x}px`,
         top: `${position.y}px`,
-        cursor: 'default'  // デフォルトのカーソルに変更
+        cursor: 'default'
       }}
       onMouseDown={handleMouseDown}
     >
@@ -379,4 +328,4 @@ const CSSPropertyMenu = ({ selectedElement, onApplyStyles, onClose, onPreviewSty
   );
 };
 
-export default CSSPropertyMenu; 
+export default CSSPropertyMenu;
