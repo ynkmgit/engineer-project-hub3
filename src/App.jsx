@@ -15,6 +15,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('markdown')
   const [selectedElement, setSelectedElement] = useState(null)
   const [previewStyles, setPreviewStyles] = useState('')
+  const [isConverting, setIsConverting] = useState(false)
 
   useEffect(() => {
     // WebSocket接続の確立
@@ -23,13 +24,25 @@ function App() {
     // コンテンツ変更の購読
     const unsubscribe = websocketService.subscribe('contentChange', (data) => {
       const { mode, content } = data;
-      switch (mode) {
-        case 'markdown':
-          setMarkdown(content);
-          break;
-        case 'css':
-          setCss(content);
-          break;
+      setIsConverting(true);
+      try {
+        switch (mode) {
+          case 'markdown':
+            setMarkdown(content);
+            setHtml(markdownToHtml(content));
+            break;
+          case 'html':
+            setHtml(content);
+            setMarkdown(htmlToMarkdown(content));
+            break;
+          case 'css':
+            setCss(content);
+            break;
+        }
+      } catch (error) {
+        console.error('Error during content sync:', error);
+      } finally {
+        setIsConverting(false);
       }
     });
 
@@ -40,15 +53,39 @@ function App() {
   }, []);
 
   const handleContentChange = (value) => {
-    switch (activeTab) {
-      case 'markdown':
-        setMarkdown(value);
-        const convertedHtml = markdownToHtml(value);
-        setHtml(convertedHtml);
-        break;
-      case 'css':
-        setCss(value);
-        break;
+    if (isConverting) return;
+
+    setIsConverting(true);
+    try {
+      switch (activeTab) {
+        case 'markdown':
+          setMarkdown(value);
+          setHtml(markdownToHtml(value));
+          websocketService.sendMessage('contentChange', {
+            mode: 'markdown',
+            content: value
+          });
+          break;
+        case 'html':
+          setHtml(value);
+          setMarkdown(htmlToMarkdown(value));
+          websocketService.sendMessage('contentChange', {
+            mode: 'html',
+            content: value
+          });
+          break;
+        case 'css':
+          setCss(value);
+          websocketService.sendMessage('contentChange', {
+            mode: 'css',
+            content: value
+          });
+          break;
+      }
+    } catch (error) {
+      console.error('Error during content conversion:', error);
+    } finally {
+      setIsConverting(false);
     }
   }
 
@@ -56,6 +93,8 @@ function App() {
     switch (activeTab) {
       case 'markdown':
         return markdown
+      case 'html':
+        return html
       case 'css':
         return css
       default:
@@ -69,37 +108,50 @@ function App() {
   }
 
   const handleUpdateElement = (updates) => {
-    // HTMLを更新
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const element = doc.querySelector(updates.originalPath);
+    if (isConverting) return;
 
-    if (element) {
-      // IDの更新（nullの場合は属性を削除）
-      if (updates.id === null) {
-        element.removeAttribute('id');
-      } else if (updates.id) {
-        element.id = updates.id;
+    setIsConverting(true);
+    try {
+      // HTMLを更新
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const element = doc.querySelector(updates.originalPath);
+
+      if (element) {
+        // IDの更新（nullの場合は属性を削除）
+        if (updates.id === null) {
+          element.removeAttribute('id');
+        } else if (updates.id) {
+          element.id = updates.id;
+        }
+
+        // クラスの更新（nullの場合は属性を削除）
+        if (updates.className === null) {
+          element.removeAttribute('class');
+        } else if (updates.className) {
+          element.className = updates.className;
+        }
+
+        // 更新されたHTMLを設定
+        const updatedHtml = doc.body.innerHTML;
+        setHtml(updatedHtml);
+        setMarkdown(htmlToMarkdown(updatedHtml));
+
+        websocketService.sendMessage('contentChange', {
+          mode: 'html',
+          content: updatedHtml
+        });
       }
-
-      // クラスの更新（nullの場合は属性を削除）
-      if (updates.className === null) {
-        element.removeAttribute('class');
-      } else if (updates.className) {
-        element.className = updates.className;
-      }
-
-      // 更新されたHTMLを設定
-      const updatedHtml = doc.body.innerHTML;
-      setHtml(updatedHtml);
-
-      // Markdownも更新
-      const convertedMarkdown = htmlToMarkdown(updatedHtml);
-      setMarkdown(convertedMarkdown);
+    } catch (error) {
+      console.error('Error updating element:', error);
+    } finally {
+      setIsConverting(false);
     }
   };
 
   const handleApplyStyles = (cssRule) => {
+    if (isConverting) return;
+
     setCss(prevCss => {
       const cssRules = prevCss.split(/}\s*/)
       const selector = cssRule.split('{')[0].trim()
@@ -113,10 +165,17 @@ function App() {
         cssRules.push(cssRule)
       }
 
-      return cssRules
+      const updatedCss = cssRules
         .filter(rule => rule.trim())
         .map(rule => rule.trim() + (rule.endsWith('}') ? '' : '}'))
-        .join('\n\n')
+        .join('\n\n');
+
+      websocketService.sendMessage('contentChange', {
+        mode: 'css',
+        content: updatedCss
+      });
+
+      return updatedCss;
     })
     setSelectedElement(null)
     setPreviewStyles('')
@@ -138,8 +197,8 @@ function App() {
         />
       </div>
       <Preview
-        markdown={markdown} // CSSタブでもマークダウンを表示
-        isHtml={false} // HTML編集を無効化したので常にfalse
+        markdown={activeTab === 'markdown' ? markdown : html}
+        isHtml={activeTab === 'html'}
         css={css}
         previewStyles={previewStyles}
         onElementSelect={handleElementSelect}

@@ -106,14 +106,14 @@ const Editor = ({ value, onChange, mode }) => {
         ...defaultEditorConfig,
         value: value,
         language: getLanguage(mode),
-        readOnly: mode === 'html', // HTML編集を無効化
+        // readOnly: mode === 'html' を削除
       };
 
       editorRef.current = monaco.editor.create(containerRef.current, options);
 
       // コンテンツ変更時のハンドラ
       editorRef.current.onDidChangeModelContent((e) => {
-        if (!isUpdatingRef.current && mode !== 'html') {
+        if (!isUpdatingRef.current) {
           const newValue = editorRef.current.getValue();
           onChange(newValue);
           
