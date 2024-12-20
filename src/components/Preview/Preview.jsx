@@ -13,7 +13,37 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
   const [selectedPath, setSelectedPath] = useState(null);
 
   const openInNewTab = () => {
-    // 既存のopenInNewTab関数の内容
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const newTabContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+          <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+          <script>${getMermaidInitScript()}</script>
+          <style>
+            ${BASE_STYLES}
+            ${css}
+            ${previewStyles || ''}
+          </style>
+        </head>
+        <body>
+          ${content}
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([newTabContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    window.open(url, '_blank');
+    
+    // Clean up
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   useEffect(() => {
