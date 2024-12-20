@@ -77,59 +77,118 @@ const Preview = ({ markdown, isHtml, css, onElementSelect, previewStyles, onScro
     });
   `;
 
+  /**
+   * プレビューを新しいタブで開く関数
+   * 現在のコンテンツとスタイルを維持したHTMLを生成し、新しいタブで表示する
+   * highlight.jsとmermaidの機能を保持したまま表示される
+   */
   const openInNewTab = () => {
+    // 新しいタブで表示するHTMLコンテンツを構築
     const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Preview</title>
-          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
-          <style>
-            body {
-              margin: 0;
-              padding: 20px;
-              box-sizing: border-box;
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            }
-            ${css}
-          </style>
-          <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-          <script>
-            document.addEventListener('DOMContentLoaded', () => {
-              mermaid.initialize({
-                startOnLoad: false,
-                theme: 'default',
-                securityLevel: 'loose',
-                fontFamily: 'sans-serif'
-              });
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Preview</title>
+        <!-- シンタックスハイライト用のスタイルシート -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+        <style>
+          /* 基本的なページスタイル */
+          body {
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          }
 
-              const mermaidDivs = document.querySelectorAll('.mermaid');
-              mermaidDivs.forEach(async (div, index) => {
-                try {
-                  const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
-                  const diagramText = div.textContent.trim();
-                  const { svg } = await mermaid.render(id, diagramText);
-                  div.innerHTML = svg;
-                } catch (error) {
-                  console.error('Error rendering mermaid:', error);
-                  div.innerHTML = '<pre>Error rendering diagram: ' + error.message + '</pre>';
-                }
-              });
+          /* コードブロックのスタイル - GitHubライクな表示 */
+          pre {
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+            overflow: auto;
+            font-size: 14px;
+            line-height: 1.45;
+            border: 1px solid #e1e4e8;
+          }
+
+          /* コードブロック内のコード要素のスタイル */
+          pre code {
+            background: none;
+            padding: 0;
+            font-size: inherit;
+            white-space: pre;
+            word-break: normal;
+            overflow-wrap: normal;
+            font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+          }
+
+          /* インラインコードのスタイル - 文中で使用されるコード */
+          :not(pre) > code {
+            background-color: rgba(175, 184, 193, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+            font-size: 85%;
+            font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+          }
+
+          /* highlight.jsのスタイル調整 */
+          .hljs {
+            background: transparent;
+            padding: 0;
+            font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+          }
+
+          /* ユーザー定義のカスタムスタイル */
+          ${css}
+        </style>
+        <!-- マーメイド図表示用のスクリプト -->
+        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+        <script>
+          // DOMコンテンツ読み込み完了後にマーメイド図を初期化・描画
+          document.addEventListener('DOMContentLoaded', () => {
+            // マーメイドの初期設定
+            mermaid.initialize({
+              startOnLoad: false,
+              theme: 'default',
+              securityLevel: 'loose',
+              fontFamily: 'sans-serif'
             });
-          </script>
-        </head>
-        <body>
-          ${content}
-        </body>
-      </html>
-    `;
 
+            // ページ内のすべてのマーメイド図を検索して描画
+            const mermaidDivs = document.querySelectorAll('.mermaid');
+            mermaidDivs.forEach(async (div, index) => {
+              try {
+                // 一意のIDを生成して図を描画
+                const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                const diagramText = div.textContent.trim();
+                const { svg } = await mermaid.render(id, diagramText);
+                div.innerHTML = svg;
+              } catch (error) {
+                console.error('Error rendering mermaid:', error);
+                div.innerHTML = '<pre>Error rendering diagram: ' + error.message + '</pre>';
+              }
+            });
+          });
+        </script>
+      </head>
+      <body>
+        ${content}
+      </body>
+    </html>
+  `;
+
+    // BlobとしてHTMLを作成し、URLを生成
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
+
+    // 新しいタブでURLを開く
     window.open(url, '_blank');
-    // メモリリークを防ぐため、URLを解放
+
+    // メモリリークを防ぐため、使用後にURLを解放
+    // 非同期でURLを解放することで、ページの読み込みに影響を与えない
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
