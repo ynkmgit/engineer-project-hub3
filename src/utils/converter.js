@@ -2,12 +2,11 @@ import TurndownService from 'turndown';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
 
-// シンタックスハイライトの設定
 const markedOptions = {
   highlight: function(code, lang) {
     if (lang && hljs.getLanguage(lang)) {
       try {
-        return hljs.highlight(lang, code).value;
+        return hljs.highlight(code, { language: lang }).value;
       } catch (err) {
         console.error('Highlight.js error:', err);
         return code;
@@ -17,7 +16,6 @@ const markedOptions = {
   }
 };
 
-// Markdownパーサーの設定
 marked.setOptions({
   ...markedOptions,
   gfm: true,
@@ -28,7 +26,6 @@ marked.setOptions({
   xhtml: true
 });
 
-// Turndownサービスのインスタンスを作成
 const turndownService = new TurndownService({
   headingStyle: 'atx',
   hr: '---',
@@ -36,7 +33,6 @@ const turndownService = new TurndownService({
   codeBlockStyle: 'fenced'
 });
 
-// マーメイド記法のカスタムルールを追加
 turndownService.addRule('mermaid', {
   filter: (node) => {
     return node.classList && node.classList.contains('mermaid');
@@ -56,56 +52,104 @@ export const htmlToMarkdown = (html) => {
   }
 };
 
+// マーメイド図のコードを安全に処理する関数
+const processMermaidCode = (code) => {
+  // コードの前後の空白を削除
+  code = code.trim();
+  
+  // 各行を処理
+  const lines = code.split('\n').map(line => {
+    // 行の前後の空白を削除
+    line = line.trim();
+    // コメント行は保持
+    if (line.startsWith('%%')) {
+      return line;
+    }
+    // 空行はスキップ
+    if (!line) {
+      return '';
+    }
+    return line;
+  });
+
+  // 空行を除去して結合
+  return lines.filter(line => line !== '').join('\n');
+};
+
 export const markdownToHtml = (markdown) => {
-  if (!markdown || typeof markdown !== 'string') {
-    return '';
-  }
+  if (!markdown || typeof markdown !== 'string') return '';
 
   try {
-    // マーメイドブロックを一時的に保護
-    const mermaidBlocks = new Map();
-    let processedMarkdown = markdown.replace(/```mermaid\n([\s\S]*?)```/g, (match, code) => {
-      const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-      mermaidBlocks.set(id, code.trim());
-      return `MERMAID_PLACEHOLDER_${id}`;
+    // テンポラリIDを生成する関数
+    const generateTempId = () => `temp_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // マーメイド図とコードブロックを一時的に保存
+    const blocks = new Map();
+    
+    // マークダウンを処理
+    let processedMarkdown = markdown;
+
+    // 1. まず、マーメイド図を処理
+    processedMarkdown = processedMarkdown.replace(/```mermaid\n([\s\S]*?)```/g, (match, code) => {
+      const id = generateTempId();
+      const processedCode = processMermaidCode(code);
+      blocks.set(id, {
+        type: 'mermaid',
+        content: processedCode
+      });
+      return `\nMERMAID_${id}\n`;
     });
 
-    // 通常のコードブロックを一時的に保護（マーメイド以外）
-    const codeBlocks = new Map();
-    processedMarkdown = processedMarkdown.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+    // 2. 次に、その他のコードブロックを処理
+    processedMarkdown = processedMarkdown.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
       // マーメイドのプレースホルダーはスキップ
-      if (match.includes('MERMAID_PLACEHOLDER_')) {
+      if (match.includes('MERMAID_')) {
         return match;
       }
-      const id = `code-${Math.random().toString(36).substr(2, 9)}`;
-      codeBlocks.set(id, { 
-        lang: lang ? lang.trim() : '', 
-        code: code.trim() 
+      const id = generateTempId();
+      blocks.set(id, {
+        type: 'code',
+        lang: lang.trim(),
+        content: code.trim()
       });
-      return `CODE_PLACEHOLDER_${id}`;
+      return `\nCODE_${id}\n`;
     });
 
-    // マークダウンをHTMLに変換
+    // 3. マークダウンをHTMLに変換
     let html = marked(processedMarkdown);
 
-    // マーメイドブロックを復元
-    mermaidBlocks.forEach((code, id) => {
-      html = html.replace(
-        `<p>MERMAID_PLACEHOLDER_${id}</p>`,
-        `<div class="mermaid">${code}</div>`
-      );
-    });
-
-    // 通常のコードブロックを復元
-    codeBlocks.forEach(({ lang, code }, id) => {
-      const highlightedCode = lang && hljs.getLanguage(lang)
-        ? hljs.highlight(code, { language: lang }).value
-        : code;
-
-      html = html.replace(
-        `<p>CODE_PLACEHOLDER_${id}</p>`,
-        `<pre><code class="hljs language-${lang}">${highlightedCode}</code></pre>`
-      );
+    // 4. マーメイド図を復元
+    blocks.forEach((block, id) => {
+      if (block.type === 'mermaid') {
+        const placeholder = `<p>MERMAID_${id}</p>`;
+        if (html.includes(placeholder)) {
+          html = html.replace(
+            placeholder,
+            `<div class="mermaid">\n${block.content}\n</div>`
+          );
+        }
+      } else if (block.type === 'code') {
+        const placeholder = `<p>CODE_${id}</p>`;
+        if (html.includes(placeholder)) {
+          const code = block.content
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          
+          if (block.lang && hljs.getLanguage(block.lang)) {
+            const highlighted = hljs.highlight(code, { language: block.lang }).value;
+            html = html.replace(
+              placeholder,
+              `<pre><code class="hljs language-${block.lang}">${highlighted}</code></pre>`
+            );
+          } else {
+            html = html.replace(
+              placeholder,
+              `<pre><code>${code}</code></pre>`
+            );
+          }
+        }
+      }
     });
 
     return html;
