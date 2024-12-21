@@ -1,0 +1,140 @@
+project:
+  name: engineer-project-hub3
+  type: web-application
+  framework: React
+  buildTool: Vite
+
+structure:
+  root:
+    - .git/
+    - .vscode/
+    - .vite/
+    - dist/
+    - node_modules/
+    - public/
+    - src/:
+        components/:
+          - Editor.jsx
+          Editor/:
+            - Editor.jsx
+            - Editor.css
+          Preview/:
+            - Preview.jsx
+            - Preview.css
+            - constants.js
+            hooks/:  # Future: カスタムフック用
+            scripts/:  # Future: ユーティリティスクリプト
+            styles/:  # Future: スタイル関連
+            components/:  # Future: サブコンポーネント
+          TabSelector/:
+            - TabSelector.jsx
+            - TabSelector.css
+          Toolbar/:
+            - Toolbar.jsx
+            - Toolbar.css  # スタイリング用
+          CSSEditor/:
+            - CSSPropertyMenu.jsx
+            - CSSPropertyMenu.css
+          ui/:  # Future: 共通コンポーネント
+        styles/:
+          - global.css
+          - App.css
+        utils/:
+          - converter.js        # 高度なマークダウン変換
+          - markdownConverter.js # 基本的なマークダウン変換
+          - css-parser.js      # CSSパース・文字列化
+        services/:
+          - websocket.js       # WebSocket通信管理
+        config/:  # Future: アプリケーション設定
+        - App.jsx
+        - main.jsx
+        - monaco-config.js     # Monaco設定
+        - editor-worker.js     # Webワーカー設定
+        - vite.config.js
+    - .dockerignore
+    - .gitignore
+    - docker-compose.yml
+    - Dockerfile
+    - index.html
+    - LICENSE
+    - package-lock.json
+    - package.json
+    - README.md
+    - vite.config.js
+    - Webベース_マークダウン_マーメイド記法プレゼンテーションエディタ_開発計画_ver1.0.md
+    - project-structure.yaml
+
+core_implementations:
+  utils:
+    css-parser:
+      functions:
+        - parseCSS: "CSSテキストをオブジェクトに変換"
+        - stringifyCSS: "CSSオブジェクトをテキストに変換"
+      features:
+        - コメント除去
+        - 重要度指定の処理
+        - セレクタと宣言の分離
+
+    converter:
+      functions:
+        - markdownToHtml: "マークダウンをHTMLに変換"
+        - htmlToMarkdown: "HTMLをマークダウンに変換"
+      features:
+        - マーメイド図対応
+        - シンタックスハイライト
+        - エラーハンドリング
+        - コードブロック処理
+
+    markdownConverter:
+      functions:
+        - convertMarkdownToHtml: "基本的なマークダウン変換"
+
+  editor:
+    monaco:
+      config:
+        - JSONワーカー
+        - CSSワーカー
+        - HTMLワーカー
+        - TypeScript/JavaScriptワーカー
+        - 基本エディタワーカー
+      worker:
+        type: module
+        implementation: "monaco-editor/esm/vs/editor/editor.worker"
+
+  components:
+    Toolbar:
+      files:
+        - Toolbar.jsx: "ツールバーコンポーネント"
+        - Toolbar.css: "スタイリング"
+
+development:
+  environment:
+    runtime: Node.js 20.x
+    container: Docker
+    server: Vite Dev Server
+  tools:
+    - VSCode
+    - Git
+    - npm
+
+optimization:
+  workers:
+    - editor.worker
+    - json.worker
+    - css.worker
+    - html.worker
+    - ts.worker
+
+notes:
+  implementation_details:
+    - converter.jsは最も複雑な変換ロジックを含む
+    - css-parser.jsはCSSの双方向変換を担当
+    - markdownConverter.jsは基本的なマークダウン変換のみを提供
+    - Monaco Editorは複数のWeb Workersで最適化
+    - 各コンポーネントは独自のCSSファイルを持つ
+
+  future_extensions:
+    - Previewコンポーネントの機能拡張
+    - 共通UIコンポーネントの実装
+    - 設定管理システムの導入
+    - テスト自動化の導入
